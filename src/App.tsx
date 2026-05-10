@@ -483,7 +483,7 @@ export default function App() {
   };
   const updateDynamic = (sectionId: keyof PRDData, index: number, fieldId: string, value: string) => {
     setData(d => {
-      const arr = [...(d[sectionId] as Record<string, string>[])];
+      const arr = [...(d[sectionId] as unknown as Record<string, string>[])];
       arr[index] = { ...arr[index], [fieldId]: value };
       return { ...d, [sectionId]: arr };
     });
@@ -534,7 +534,7 @@ export default function App() {
           story.acs.forEach((ac, ai) => { (['given', 'when', 'then'] as const).forEach(f => { if (!ac[f]?.trim()) errs[`ac_${si}_${ai}_${f}`] = 'Required'; }); });
         });
       } else if (s.dynamic) {
-        (data[s.id as keyof PRDData] as Record<string, string>[]).forEach((item, i) => {
+        (data[s.id as keyof PRDData] as unknown as Record<string, string>[]).forEach((item, i) => {
           s.fields?.forEach(f => { if (f.required && !item[f.id]?.trim()) errs[`${s.id}_${i}_${f.id}`] = 'Required'; });
         });
       } else {
@@ -551,7 +551,7 @@ export default function App() {
       setSubmitted(true);
       const firstErr = SECTIONS.find(s => {
         if (s.isStories) return data.stories.some((story, si) => ['persona','action','benefit'].some(f => errs[`story_${si}_${f}`]) || story.acs.some((_, ai) => ['given','when','then'].some(f => errs[`ac_${si}_${ai}_${f}`])));
-        if (s.dynamic) return (data[s.id as keyof PRDData] as Record<string, string>[]).some((_, i) => s.fields?.some(f => errs[`${s.id}_${i}_${f.id}`]));
+        if (s.dynamic) return (data[s.id as keyof PRDData] as unknown as Record<string, string>[]).some((_, i) => s.fields?.some(f => errs[`${s.id}_${i}_${f.id}`]));
         return s.fields?.some(f => errs[f.id]);
       });
       if (firstErr) setActiveSection(firstErr.id);
@@ -587,7 +587,7 @@ export default function App() {
   const sectionHasErrors = (s: SectionDef) => {
     if (!submitted) return false;
     if (s.isStories) return data.stories.some((story, si) => ['persona','action','benefit'].some(f => errors[`story_${si}_${f}`]) || story.acs.some((_, ai) => ['given','when','then'].some(f => errors[`ac_${si}_${ai}_${f}`])));
-    if (s.dynamic) return (data[s.id as keyof PRDData] as Record<string, string>[]).some((_, i) => s.fields?.some(f => errors[`${s.id}_${i}_${f.id}`]));
+    if (s.dynamic) return (data[s.id as keyof PRDData] as unknown as Record<string, string>[]).some((_, i) => s.fields?.some(f => errors[`${s.id}_${i}_${f.id}`]));
     return s.fields?.some(f => errors[f.id]) ?? false;
   };
 
@@ -891,7 +891,7 @@ export default function App() {
             {/* Dynamic items */}
             {!currentSection.isStories && currentSection.dynamic && (
               <div>
-                {(data[currentSection.id as keyof PRDData] as Record<string, string>[]).map((item, idx) => (
+                {(data[currentSection.id as keyof PRDData] as unknown as Record<string, string>[]).map((item, idx) => (
                   <div key={idx} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: mob ? '14px 14px 2px' : '20px 20px 4px', marginBottom: 12, background: C.surface }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                       <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>
