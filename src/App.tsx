@@ -68,41 +68,50 @@ interface FieldDef {
 const SECTIONS: SectionDef[] = [
   {
     id: 'brief', title: 'Feature Brief',
+    note: 'The elevator pitch. Keep each answer short — this becomes the Jira Epic description.',
     fields: [
-      { id: 'featureName', label: 'Feature Name', type: 'text', placeholder: 'e.g. Guest Room Upgrade Request', required: true, maxLength: 80 },
-      { id: 'what', label: 'What is it?', type: 'textarea', placeholder: 'One sentence. What does this feature do?', required: true, maxLength: 200, rows: 2 },
-      { id: 'why', label: 'Why are we building it?', type: 'textarea', placeholder: 'Business reason or user problem it solves.', required: true, maxLength: 300, rows: 3 },
-      { id: 'who', label: 'Who is it for?', type: 'text', placeholder: 'e.g. Hotel guests, Front desk staff', required: true, maxLength: 120 },
+      { id: 'featureName', label: 'Feature name', type: 'text', placeholder: 'e.g. Guest Room Upgrade Request', required: true, maxLength: 80 },
+      { id: 'what', label: 'What does it do?', type: 'textarea', placeholder: 'e.g. Lets guests request a room upgrade from their phone during check-in, without calling the front desk.', required: true, maxLength: 200, rows: 2 },
+      { id: 'why', label: 'What problem does it solve?', type: 'textarea', placeholder: 'e.g. Guests frequently call reception for upgrades, overloading staff during peak hours and reducing upsell opportunities.', required: true, maxLength: 300, rows: 3 },
+      { id: 'who', label: 'Who uses it?', type: 'text', placeholder: 'e.g. Hotel guests (iOS & Android), Front-desk agents', required: true, maxLength: 120 },
     ],
   },
-  { id: 'stories', title: 'User Stories & AC', note: 'Each story includes its own Acceptance Criteria — the definition of done.', isStories: true },
   {
-    id: 'edge', title: 'Edge Cases', note: 'Minimum 2 edge cases required.',
-    dynamic: true, itemLabel: 'Edge Case', prefix: 'EC', minItems: 2,
+    id: 'stories', title: 'User Stories & AC',
+    note: 'One story = one dev task. Split large features into smaller stories. Each story needs at least one AC — that\'s your definition of done for that task.',
+    isStories: true,
+  },
+  {
+    id: 'edge', title: 'Edge Cases',
+    note: 'Optional but recommended. Think about what should happen when things go wrong or inputs are unexpected.',
+    dynamic: true, itemLabel: 'Edge Case', prefix: 'EC', minItems: 1,
     fields: [
-      { id: 'scenario', label: 'Scenario', type: 'text', placeholder: 'e.g. User submits empty form', required: true, maxLength: 120 },
-      { id: 'behavior', label: 'Expected Behavior', type: 'textarea', placeholder: 'What should the system do?', required: true, maxLength: 200, rows: 2 },
-      { id: 'errorMsg', label: 'Error Message (if any)', type: 'text', placeholder: '"This field is required"', required: false, maxLength: 120 },
+      { id: 'scenario', label: 'What could go wrong?', type: 'text', placeholder: 'e.g. Guest selects an upgrade but no rooms of that type are available', required: true, maxLength: 120 },
+      { id: 'behavior', label: 'What should the system do?', type: 'textarea', placeholder: 'e.g. Show a "No upgrades available" message and offer to join a waitlist.', required: true, maxLength: 200, rows: 2 },
+      { id: 'errorMsg', label: 'Error message shown to user (if any)', type: 'text', placeholder: 'e.g. "No upgrades are available for your room type right now."', required: false, maxLength: 120 },
     ],
   },
   {
     id: 'technical', title: 'Technical Notes',
+    note: 'For the tech lead. Fill in what you know — leave blank if uncertain. This can be completed during sprint refinement.',
     fields: [
-      { id: 'api', label: 'API / Endpoints', type: 'textarea', placeholder: 'List endpoints needed or affected. One per line.', required: false, maxLength: 400, rows: 4 },
-      { id: 'db', label: 'DB / Schema changes', type: 'textarea', placeholder: 'New tables, fields, or changes to existing schema.', required: false, maxLength: 400, rows: 3 },
-      { id: 'integrations', label: 'Third-party integrations', type: 'textarea', placeholder: 'e.g. Stripe for payments, Firebase for push notifications', required: false, maxLength: 300, rows: 3 },
+      { id: 'api', label: 'API / Endpoints affected', type: 'textarea', placeholder: 'e.g.\nGET /reservations/{id}/upgrade-options\nPOST /reservations/{id}/upgrade-request', required: false, maxLength: 400, rows: 4 },
+      { id: 'db', label: 'Database / schema changes', type: 'textarea', placeholder: 'e.g. Add upgrade_request table with fields: reservation_id, room_type, status, requested_at', required: false, maxLength: 400, rows: 3 },
+      { id: 'integrations', label: 'Third-party services involved', type: 'textarea', placeholder: 'e.g. PMS (Opera) for room availability, Firebase for push notifications to staff', required: false, maxLength: 300, rows: 3 },
     ],
   },
   {
-    id: 'scope', title: 'Out of Scope', note: 'Mandatory. At least 1 item.',
+    id: 'scope', title: 'Out of Scope',
+    note: 'Explicitly listing what\'s excluded prevents scope creep and keeps the sprint focused. At least 1 item required.',
     dynamic: true, itemLabel: 'Out of Scope Item', prefix: null, minItems: 1,
-    fields: [{ id: 'item', label: 'Not in this release', type: 'text', placeholder: 'e.g. Admin reporting dashboard', required: true, maxLength: 150 }],
+    fields: [{ id: 'item', label: 'What is NOT included in this release?', type: 'text', placeholder: 'e.g. Admin dashboard for managing upgrade requests, Multi-language support, Reporting & analytics', required: true, maxLength: 150 }],
   },
   {
     id: 'design', title: 'Design Links',
+    note: 'Link Figma designs when ready. This section is optional — it can be filled in or updated before sprint start.',
     fields: [
-      { id: 'figma', label: 'Figma / Design file URL', type: 'text', placeholder: 'https://figma.com/...', required: true, maxLength: 300 },
-      { id: 'screens', label: 'Screen names included', type: 'textarea', placeholder: 'List screen names from the mockup, one per line.', required: true, maxLength: 400, rows: 4 },
+      { id: 'figma', label: 'Figma / design file URL', type: 'text', placeholder: 'https://figma.com/...', required: false, maxLength: 300 },
+      { id: 'screens', label: 'Screen names included in the mockup', type: 'textarea', placeholder: 'e.g.\nUpgrade Selection Screen\nConfirmation Screen\nStaff Notification View', required: false, maxLength: 400, rows: 4 },
     ],
   },
 ];
@@ -113,7 +122,7 @@ const newStory = (): Story => ({ persona: '', action: '', benefit: '', acs: [new
 function initData(): PRDData {
   return {
     stories: [newStory()],
-    edge: [{ scenario: '', behavior: '', errorMsg: '' }, { scenario: '', behavior: '', errorMsg: '' }],
+    edge: [{ scenario: '', behavior: '', errorMsg: '' }],
     scope: [{ item: '' }],
     featureName: '', what: '', why: '', who: '',
     api: '', db: '', integrations: '',
@@ -812,9 +821,9 @@ export default function App() {
                     </div>
                     <div style={{ padding: mob ? '16px 14px 4px' : '20px 18px 4px' }}>
                       {([
-                        { id: 'persona' as const, label: 'As a', placeholder: 'guest / staff member / manager', maxLength: 60 },
-                        { id: 'action'  as const, label: 'I want to', placeholder: 'describe the action', maxLength: 120 },
-                        { id: 'benefit' as const, label: 'So that', placeholder: 'describe the benefit', maxLength: 150 },
+                        { id: 'persona' as const, label: 'As a', placeholder: 'e.g. hotel guest, front-desk agent, housekeeping supervisor', maxLength: 60 },
+                        { id: 'action'  as const, label: 'I want to', placeholder: 'e.g. request a room upgrade from my phone during check-in', maxLength: 120 },
+                        { id: 'benefit' as const, label: 'So that', placeholder: 'e.g. I can get a better room without waiting on hold with reception', maxLength: 150 },
                       ]).map(f => (
                         <FieldInput key={f.id}
                           field={{ ...f, type: 'text', required: true }}
@@ -828,10 +837,13 @@ export default function App() {
 
                     {/* Definition of Done */}
                     <div style={{ margin: mob ? '4px 14px 16px' : '4px 18px 18px', borderLeft: `2px solid ${C.acAccent}`, paddingLeft: mob ? 14 : 18 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Definition of Done</span>
                         <span style={{ fontSize: 11.5, color: C.textFaint, fontWeight: 400 }}>Acceptance Criteria · Given / When / Then</span>
                       </div>
+                      <p style={{ fontSize: 11.5, color: C.textSubtle, margin: '0 0 14px', lineHeight: 1.5 }}>
+                        Describe a testable scenario. <span style={{ color: C.textFaint }}>Given</span> a starting condition, <span style={{ color: C.textFaint }}>When</span> something happens, <span style={{ color: C.textFaint }}>Then</span> the system behaves this way.
+                      </p>
                       {story.acs.map((ac, ai) => (
                         <div key={ai} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: ai < story.acs.length - 1 ? `1px dashed ${C.border}` : 'none' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -848,9 +860,9 @@ export default function App() {
                             )}
                           </div>
                           {([
-                            { id: 'given' as const, label: 'Given', placeholder: 'precondition / context' },
-                            { id: 'when'  as const, label: 'When',  placeholder: 'user action or trigger' },
-                            { id: 'then'  as const, label: 'Then',  placeholder: 'expected system response' },
+                            { id: 'given' as const, label: 'Given', placeholder: 'e.g. a logged-in guest is on the reservation details screen' },
+                            { id: 'when'  as const, label: 'When',  placeholder: 'e.g. they tap "Request Upgrade" and select a room type' },
+                            { id: 'then'  as const, label: 'Then',  placeholder: 'e.g. a confirmation is shown and the front-desk receives a notification' },
                           ]).map(f => (
                             <ACField key={f.id}
                               label={f.label} placeholder={f.placeholder}
