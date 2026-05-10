@@ -36,7 +36,6 @@ interface PRDData {
   what: string;
   why: string;
   who: string;
-  stack: string;
   api: string;
   db: string;
   integrations: string;
@@ -89,7 +88,6 @@ const SECTIONS: SectionDef[] = [
   {
     id: 'technical', title: 'Technical Notes',
     fields: [
-      { id: 'stack', label: 'Stack / Platform constraints', type: 'textarea', placeholder: 'Must match existing stack. e.g. React + Node.js, iOS & Android', required: true, maxLength: 300, rows: 3 },
       { id: 'api', label: 'API / Endpoints', type: 'textarea', placeholder: 'List endpoints needed or affected. One per line.', required: false, maxLength: 400, rows: 4 },
       { id: 'db', label: 'DB / Schema changes', type: 'textarea', placeholder: 'New tables, fields, or changes to existing schema.', required: false, maxLength: 400, rows: 3 },
       { id: 'integrations', label: 'Third-party integrations', type: 'textarea', placeholder: 'e.g. Stripe for payments, Firebase for push notifications', required: false, maxLength: 300, rows: 3 },
@@ -118,7 +116,7 @@ function initData(): PRDData {
     edge: [{ scenario: '', behavior: '', errorMsg: '' }, { scenario: '', behavior: '', errorMsg: '' }],
     scope: [{ item: '' }],
     featureName: '', what: '', why: '', who: '',
-    stack: '', api: '', db: '', integrations: '',
+    api: '', db: '', integrations: '',
     figma: '', screens: '',
   };
 }
@@ -259,8 +257,7 @@ async function generateDocx(data: PRDData): Promise<Blob> {
         sp2(),
         h1('4. Technical Notes'),
         sp2(),
-        techRow('Stack / Constraints', data.stack, true), sp2(),
-        techRow('API / Endpoints', data.api), sp2(),
+        techRow('API / Endpoints', data.api, true), sp2(),
         techRow('DB / Schema changes', data.db), sp2(),
         techRow('3rd-party integrations', data.integrations), sp2(),
         h1('5. Out of Scope'),
@@ -291,7 +288,7 @@ function generateTxt(data: PRDData) {
   });
   text += `\n3. EDGE CASES\n${'-'.repeat(30)}\n`;
   (data.edge || []).forEach((e, i) => { text += `EC-${String(i + 1).padStart(2, '0')}: ${e.scenario}\n  Expected: ${e.behavior}\n${e.errorMsg ? `  Error: "${e.errorMsg}"\n` : ''}`; });
-  text += `\n4. TECHNICAL NOTES\n${'-'.repeat(30)}\nStack: ${data.stack}\nAPI: ${data.api}\nDB: ${data.db}\nIntegrations: ${data.integrations}\n`;
+  text += `\n4. TECHNICAL NOTES\n${'-'.repeat(30)}\nAPI: ${data.api}\nDB: ${data.db}\nIntegrations: ${data.integrations}\n`;
   text += `\n5. OUT OF SCOPE\n${'-'.repeat(30)}\n`;
   (data.scope || []).forEach(s => { text += `- ${s.item}\n`; });
   text += `\n6. DESIGN LINKS\n${'-'.repeat(30)}\nFigma: ${data.figma}\nScreens: ${data.screens}\n`;
