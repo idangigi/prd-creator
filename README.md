@@ -1,75 +1,44 @@
-# React + TypeScript + Vite
+# Fattal Hotels — PRD Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser-based Product Requirements Document (PRD) creator for internal use at Fattal Hotels. PMs fill out a guided, multi-section form and export a formatted Word document (`.docx`) or plain text file — no backend required.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Walks users through six PRD sections:
 
-## React Compiler
+1. **Feature Brief** — name, what/why/who
+2. **User Stories & AC** — "As a / I want to / So that" format with Given/When/Then acceptance criteria
+3. **Edge Cases** — scenario, expected behavior, error message
+4. **Technical Notes** — API endpoints, DB/schema changes, third-party integrations
+5. **Out of Scope** — explicit exclusions for the release
+6. **Design Links** — Figma URL and screen names
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+Exports produce a styled Word document branded for Fattal Hotels, or a plain `.txt` file.
 
-Note: This will impact Vite dev & build performances.
+## Tech stack
 
-## Expanding the ESLint configuration
+- **React 19** + **TypeScript** — single-page app, no routing
+- **Vite** — dev server and build
+- **docx** — client-side `.docx` generation
+- **React Compiler** — automatic memoization via `babel-plugin-react-compiler`
+- **GitHub Pages** — deployed at `/prd-creator/`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Getting started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open `http://localhost:5173/prd-creator/`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Build & deploy
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build    # outputs to dist/
+npm run deploy   # builds and pushes to gh-pages branch
 ```
+
+## Intended audience
+
+Internal — PM + Tech Lead sign-off required before development starts.
