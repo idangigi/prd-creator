@@ -177,14 +177,14 @@ function getSections(lang: Lang): SectionDef[] {
     },
     {
       id: 'scope',
-      title: he ? 'מחוץ לתחום' : 'Out of Scope',
+      title: he ? 'היקף הפרויקט' : 'Project Scope',
       note: he
-        ? 'רישום מפורש של מה שלא נכלל מונע זחילת היקף ומשמר את המיקוד בספרינט. נדרש לפחות פריט אחד.'
-        : 'Explicitly listing what\'s excluded prevents scope creep and keeps the sprint focused. At least 1 item required.',
-      dynamic: true, itemLabel: he ? 'פריט מחוץ לתחום' : 'Out of Scope Item',
-      addLabel: he ? 'הוסף פריט מחוץ לתחום' : 'Add Out of Scope Item',
+        ? 'הגדר מה מהדורה זו תספק. גבולות ברורים מונעים זחילת היקף ושומרים על המיקוד בספרינט. נדרש לפחות פריט אחד.'
+        : 'Define what this release will deliver. Clear scope boundaries prevent scope creep and keep the sprint focused. At least 1 item required.',
+      dynamic: true, itemLabel: he ? 'פריט היקף' : 'Scope Item',
+      addLabel: he ? 'הוסף פריט היקף' : 'Add Scope Item',
       prefix: null, minItems: 1,
-      fields: [{ id: 'item', label: he ? 'מה לא נכלל במהדורה זו?' : 'What is NOT included in this release?', type: 'text', placeholder: he ? 'לדוגמה: דשבורד ניהול לבקשות שדרוג, תמיכה בריבוי שפות, דוחות וניתוחים' : 'e.g. Admin dashboard for managing upgrade requests, Multi-language support, Reporting & analytics', required: true, maxLength: 150 }],
+      fields: [{ id: 'item', label: he ? 'מה כלול במהדורה זו?' : 'What is included in this release?', type: 'text', placeholder: he ? 'לדוגמה: בקשת שדרוג חדר לאורחים במובייל, התראות push לצוות הקבלה, בדיקת זמינות חדרים בסיסית' : 'e.g. Guest room upgrade request via mobile app, Push notifications to front-desk staff, Basic room availability check', required: true, maxLength: 150 }],
     },
     {
       id: 'design',
@@ -353,10 +353,10 @@ async function generateDocx(data: PRDData): Promise<Blob> {
         techRow('API / Endpoints', data.api, true), sp2(),
         techRow('DB / Schema changes', data.db), sp2(),
         techRow('3rd-party integrations', data.integrations), sp2(),
-        h1('5. Out of Scope'),
+        h1('5. Project Scope'),
         noteBox('At least 1 item mandatory.'),
         sp2(),
-        ...(data.scope || []).map(s => new Paragraph({ numbering: { reference: 'bullets', level: 0 }, ...sp(60, 60), children: [new TextRun({ text: s.item || '[Out of scope item]', size: 20, font: 'Calibri' })] })),
+        ...(data.scope || []).map(s => new Paragraph({ numbering: { reference: 'bullets', level: 0 }, ...sp(60, 60), children: [new TextRun({ text: s.item || '[Scope item]', size: 20, font: 'Calibri' })] })),
         sp2(),
         h1('6. Design Links'),
         sp2(),
@@ -382,7 +382,7 @@ function generateTxt(data: PRDData) {
   text += `\n3. EDGE CASES\n${'-'.repeat(30)}\n`;
   (data.edge || []).forEach((e, i) => { text += `EC-${String(i + 1).padStart(2, '0')}: ${e.scenario}\n  Expected: ${e.behavior}\n${e.errorMsg ? `  Error: "${e.errorMsg}"\n` : ''}`; });
   text += `\n4. TECHNICAL NOTES\n${'-'.repeat(30)}\nAPI: ${data.api}\nDB: ${data.db}\nIntegrations: ${data.integrations}\n`;
-  text += `\n5. OUT OF SCOPE\n${'-'.repeat(30)}\n`;
+  text += `\n5. PROJECT SCOPE\n${'-'.repeat(30)}\n`;
   (data.scope || []).forEach(s => { text += `- ${s.item}\n`; });
   text += `\n6. DESIGN LINKS\n${'-'.repeat(30)}\nFigma: ${data.figma}\nScreens: ${data.screens}\n`;
   const blob = new Blob([text], { type: 'text/plain' });
@@ -480,7 +480,7 @@ function FieldInput({ field, value, onChange, error, inputId, mob, errorText = '
   return (
     <div style={{ marginBottom: mob ? 14 : 18 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
-        <label htmlFor={id} style={{ fontSize: 12, fontWeight: 500, color: C.text, letterSpacing: '-0.005em' }}>
+        <label htmlFor={id} style={{ fontSize: mob ? 12 : 14, fontWeight: 500, color: C.text, letterSpacing: '-0.005em' }}>
           {field.label}
           {field.required && <span style={{ color: C.textFaint, marginLeft: 4, fontWeight: 400 }}>*</span>}
         </label>
@@ -753,7 +753,7 @@ export default function App() {
               variant="primary" size="md"
               onClick={() => handleExport('docx')}
               disabled={exporting}
-              style={{ borderRadius: '5px 0 0 5px', borderRight: '1px solid rgba(255,255,255,0.15)', minWidth: mob ? 90 : 110 }}
+              style={{ borderRadius: 0, borderStartStartRadius: 5, borderEndStartRadius: 5, borderInlineEnd: '1px solid rgba(255,255,255,0.15)', minWidth: mob ? 90 : 110 }}
             >
               {exporting ? '...' : exportDone ? <><CheckIcon /> {ui.saved}</> : <><DownloadIcon /> {ui.exportBtn}</>}
             </Btn>
@@ -761,13 +761,13 @@ export default function App() {
               variant="primary" size="md"
               onClick={() => setShowExportMenu(o => !o)}
               disabled={exporting}
-              style={{ borderRadius: '0 5px 5px 0', padding: '0 8px', minWidth: 0 }}
+              style={{ borderRadius: 0, borderStartEndRadius: 5, borderEndEndRadius: 5, padding: '0 8px', minWidth: 0 }}
             >
               <span style={{ transform: showExportMenu ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease', display: 'inline-flex' }}><ChevronIcon /></span>
             </Btn>
             {showExportMenu && (
               <div style={{
-                position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+                position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 6px)',
                 background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                 minWidth: 180, zIndex: 200, overflow: 'hidden', padding: 4,
@@ -781,7 +781,7 @@ export default function App() {
                     style={{
                       width: '100%', padding: '8px 10px',
                       background: 'transparent', border: 'none', borderRadius: 4,
-                      textAlign: 'left', cursor: 'pointer', color: C.text,
+                      textAlign: 'start', cursor: 'pointer', color: C.text,
                       display: 'flex', alignItems: 'center', gap: 9,
                       fontSize: 13, fontWeight: 500,
                     }}

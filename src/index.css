@@ -12,7 +12,7 @@ body {
 input, textarea, button { font-family: inherit; letter-spacing: inherit; }
 textarea { line-height: 1.55; }
 button { -webkit-tap-highlight-color: transparent; }
-input::placeholder, textarea::placeholder { color: #A3A3A3; }
+input::placeholder, textarea::placeholder { color: #737373; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #D4D4D4; }
