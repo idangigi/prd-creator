@@ -19,6 +19,7 @@ const UI: Record<Lang, {
   acGivenPlaceholder: string; acWhenPlaceholder: string; acThenPlaceholder: string;
   addAC: string; addStory: string; remove: string; item: string;
   fieldRequired: string; required: string; footer: string;
+  filesUpload: string; filesUploadSub: string; filesNone: string;
 }> = {
   en: {
     subtitle: 'PRD Builder', step: 'Step', of: '/', sectionsLabel: 'Sections',
@@ -39,6 +40,8 @@ const UI: Record<Lang, {
     addAC: 'Add Acceptance Criterion', addStory: 'Add User Story', remove: 'Remove', item: 'Item',
     fieldRequired: 'This field is required.', required: 'Required',
     footer: 'Internal Use · PM + Tech Lead sign-off required before dev start',
+    filesUpload: 'Click to upload or drag & drop', filesUploadSub: 'PDF, DOCX, XLSX, PNG, JPG and more',
+    filesNone: 'No files attached yet',
   },
   he: {
     subtitle: 'בונה PRD', step: 'שלב', of: 'מתוך', sectionsLabel: 'סעיפים',
@@ -59,6 +62,8 @@ const UI: Record<Lang, {
     addAC: 'הוסף קריטריון קבלה', addStory: 'הוסף סיפור משתמש', remove: 'הסר', item: 'פריט',
     fieldRequired: 'שדה זה הינו חובה.', required: 'חובה',
     footer: 'לשימוש פנימי · נדרשת אישור PM ו-Tech Lead לפני תחילת פיתוח',
+    filesUpload: 'לחץ להעלאה או גרור ושחרר', filesUploadSub: 'PDF, DOCX, XLSX, PNG, JPG ועוד',
+    filesNone: 'לא צורפו קבצים עדיין',
   },
 };
 
@@ -85,11 +90,13 @@ interface AC { given: string; when: string; then: string }
 interface Story { persona: string; action: string; benefit: string; acs: AC[] }
 interface EdgeCase { scenario: string; behavior: string; errorMsg: string }
 interface ScopeItem { item: string }
+interface AttachedFile { id: string; name: string; size: number; type: string; url: string }
 
 interface PRDData {
   stories: Story[];
   edge: EdgeCase[];
   scope: ScopeItem[];
+  files: AttachedFile[];
   featureName: string;
   what: string;
   why: string;
@@ -106,6 +113,7 @@ interface SectionDef {
   title: string;
   note?: string;
   isStories?: boolean;
+  isFiles?: boolean;
   dynamic?: boolean;
   itemLabel?: string;
   addLabel?: string;
@@ -197,6 +205,14 @@ function getSections(lang: Lang): SectionDef[] {
         { id: 'screens', label: he ? 'שמות מסכים הכלולים במוקאפ' : 'Screen names included in the mockup', type: 'textarea', placeholder: he ? 'לדוגמה:\nמסך בחירת שדרוג\nמסך אישור\nתצוגת התראת צוות' : 'e.g.\nUpgrade Selection Screen\nConfirmation Screen\nStaff Notification View', required: false, maxLength: 400, rows: 4 },
       ],
     },
+    {
+      id: 'files',
+      title: he ? 'קבצי עזר' : 'Reference Files',
+      note: he
+        ? 'צרף קבצים רלוונטיים לפיצ\'ר — מסמכי API, הנחיות שירות צד שלישי, מחקר משתמשים, מוקאפים ועוד. הקבצים שמורים בזיכרון הדפדפן לאורך הסשן.'
+        : 'Attach files relevant to this feature — API docs, third-party service guides, user research, mockups, and more. Files are kept in browser memory for this session.',
+      isFiles: true,
+    },
   ];
 }
 
@@ -208,6 +224,7 @@ function initData(): PRDData {
     stories: [newStory()],
     edge: [{ scenario: '', behavior: '', errorMsg: '' }],
     scope: [{ item: '' }],
+    files: [],
     featureName: '', what: '', why: '', who: '',
     api: '', db: '', integrations: '',
     figma: '', screens: '',
@@ -363,6 +380,13 @@ async function generateDocx(data: PRDData): Promise<Blob> {
         lbl('Figma / Design file URL', true), blankLine(data.figma || 'https://figma.com/...'), sp2(),
         lbl('Screen names included', true), blankLine(data.screens || 'List screen names from the mockup, one per line.'),
         sp2(),
+        h1('7. Reference Files'),
+        noteBox('Files attached to this PRD for reference.'),
+        sp2(),
+        ...(data.files && data.files.length > 0
+          ? data.files.map(f => new Paragraph({ numbering: { reference: 'bullets', level: 0 }, ...sp(60, 60), children: [new TextRun({ text: `${f.name}  (${formatFileSize(f.size)})`, size: 20, font: 'Calibri' })] }))
+          : [new Paragraph({ ...sp(60, 60), children: [new TextRun({ text: 'No files attached.', size: 20, font: 'Calibri', italics: true, color: '888888' })] })]),
+        sp2(),
         new Paragraph({ spacing: { before: 300, after: 0 }, border: { top: { style: BorderStyle.SINGLE, size: 4, color: BLUE, space: 4 } }, children: [new TextRun({ text: 'Fattal Hotels - Internal Use Only - PM + Tech Lead sign-off required before dev start', size: 17, font: 'Calibri', color: '888888', italics: true })] }),
       ],
     }],
@@ -385,6 +409,12 @@ function generateTxt(data: PRDData) {
   text += `\n5. PROJECT SCOPE\n${'-'.repeat(30)}\n`;
   (data.scope || []).forEach(s => { text += `- ${s.item}\n`; });
   text += `\n6. DESIGN LINKS\n${'-'.repeat(30)}\nFigma: ${data.figma}\nScreens: ${data.screens}\n`;
+  text += `\n7. REFERENCE FILES\n${'-'.repeat(30)}\n`;
+  if (data.files && data.files.length > 0) {
+    data.files.forEach(f => { text += `- ${f.name} (${formatFileSize(f.size)})\n`; });
+  } else {
+    text += 'No files attached.\n';
+  }
   const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -392,6 +422,13 @@ function generateTxt(data: PRDData) {
   a.download = `Fattal-PRD-${(data.featureName || 'Feature').replace(/\s+/g, '-')}.txt`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Utilities ────────────────────────────────────────────────────
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ── Lightweight icons ─────────────────────────────────────────────
@@ -405,6 +442,7 @@ const CheckIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="no
 const DownloadIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const DocIcon = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9.5 1.5V5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>;
 const TrashIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.5 9.5h6L11.5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+const UploadIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 
 // ── Btn ───────────────────────────────────────────────────────────
 type BtnVariant = 'primary' | 'outline' | 'ghost' | 'subtle' | 'dashed';
@@ -549,7 +587,9 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [lang, setLang] = useState<Lang>('en');
+  const [dragOver, setDragOver] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sections = getSections(lang);
   const ui = UI[lang];
@@ -619,6 +659,22 @@ export default function App() {
     s[si] = { ...s[si], acs: s[si].acs.filter((_, i) => i !== ai) };
     return { ...d, stories: s };
   });
+
+  const handleFileDrop = (fileList: FileList) => {
+    const newFiles: AttachedFile[] = Array.from(fileList).map(f => ({
+      id: Math.random().toString(36).slice(2),
+      name: f.name, size: f.size, type: f.type,
+      url: URL.createObjectURL(f),
+    }));
+    setData(d => ({ ...d, files: [...d.files, ...newFiles] }));
+  };
+  const removeFile = (id: string) => {
+    setData(d => {
+      const file = d.files.find(f => f.id === id);
+      if (file) URL.revokeObjectURL(file.url);
+      return { ...d, files: d.files.filter(f => f.id !== id) };
+    });
+  };
 
   const validate = (): ErrorMap => {
     const errs: ErrorMap = {};
@@ -994,7 +1050,7 @@ export default function App() {
             )}
 
             {/* Static fields */}
-            {!currentSection.isStories && !currentSection.dynamic && currentSection.fields?.map(field => (
+            {!currentSection.isStories && !currentSection.isFiles && !currentSection.dynamic && currentSection.fields?.map(field => (
               <FieldInput key={field.id}
                 field={field}
                 value={(data[field.id as keyof PRDData] as string) || ''}
@@ -1005,8 +1061,62 @@ export default function App() {
               />
             ))}
 
-            {/* Dynamic items */}
-            {!currentSection.isStories && currentSection.dynamic && (
+            {/* Reference files */}
+            {currentSection.isFiles && (
+              <div>
+                <input
+                  ref={fileInputRef} type="file" multiple style={{ display: 'none' }}
+                  onChange={e => { if (e.target.files) handleFileDrop(e.target.files); e.currentTarget.value = ''; }}
+                />
+                <div
+                  onDragEnter={() => setDragOver(true)}
+                  onDragLeave={() => setDragOver(false)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); handleFileDrop(e.dataTransfer.files); }}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${dragOver ? C.text : C.borderStrong}`,
+                    borderRadius: 8, padding: mob ? '28px 16px' : '36px 24px',
+                    textAlign: 'center', cursor: 'pointer',
+                    background: dragOver ? C.hover : C.bg,
+                    transition: 'border-color 120ms ease, background 120ms ease',
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, color: dragOver ? C.text : C.textMuted }}>
+                    <UploadIcon />
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 4 }}>{ui.filesUpload}</div>
+                  <div style={{ fontSize: 12, color: C.textFaint }}>{ui.filesUploadSub}</div>
+                </div>
+                {data.files.length === 0 && (
+                  <p style={{ textAlign: 'center', fontSize: 12, color: C.textFaint, margin: '0 0 16px' }}>{ui.filesNone}</p>
+                )}
+                {data.files.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+                    {data.files.map(file => (
+                      <div key={file.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: mob ? '10px 12px' : '10px 16px',
+                        border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface,
+                      }}>
+                        <span style={{ color: C.textMuted, display: 'inline-flex', flexShrink: 0 }}><DocIcon /></span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <a href={file.url} download={file.name} onClick={e => e.stopPropagation()} style={{
+                            fontSize: 13, fontWeight: 500, color: C.text, textDecoration: 'none',
+                            display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>{file.name}</a>
+                          <span style={{ fontSize: 11, color: C.textFaint }}>{formatFileSize(file.size)}</span>
+                        </div>
+                        <Btn variant="ghost" size="sm" onClick={() => removeFile(file.id)}><TrashIcon /> {ui.remove}</Btn>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!currentSection.isStories && !currentSection.isFiles && currentSection.dynamic && (
               <div>
                 {(data[currentSection.id as keyof PRDData] as unknown as Record<string, string>[]).map((item, idx) => (
                   <div key={idx} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: mob ? '14px 14px 2px' : '20px 20px 4px', marginBottom: 12, background: C.surface }}>
