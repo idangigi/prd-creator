@@ -4,6 +4,64 @@ import {
   AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat,
 } from 'docx';
 
+// ── Language ───────────────────────────────────────────────────────
+type Lang = 'en' | 'he';
+
+const UI: Record<Lang, {
+  subtitle: string; step: string; of: string; sectionsLabel: string;
+  exportBtn: string; saved: string;
+  exportDocx: string; microsoftWord: string; exportTxt: string; plainText: string;
+  back: string; next: string;
+  asA: string; iWantTo: string; soThat: string;
+  storyPersonaPlaceholder: string; storyActionPlaceholder: string; storyBenefitPlaceholder: string;
+  dod: string; acSubtitle: string; acHint: string;
+  given: string; when: string; then: string;
+  acGivenPlaceholder: string; acWhenPlaceholder: string; acThenPlaceholder: string;
+  addAC: string; addStory: string; remove: string; item: string;
+  fieldRequired: string; required: string; footer: string;
+}> = {
+  en: {
+    subtitle: 'PRD Builder', step: 'Step', of: '/', sectionsLabel: 'Sections',
+    exportBtn: 'Export', saved: 'Saved',
+    exportDocx: 'Export as .docx', microsoftWord: 'Microsoft Word',
+    exportTxt: 'Export as .txt', plainText: 'Plain text',
+    back: 'Back', next: 'Next',
+    asA: 'As a', iWantTo: 'I want to', soThat: 'So that',
+    storyPersonaPlaceholder: 'e.g. hotel guest, front-desk agent, housekeeping supervisor',
+    storyActionPlaceholder: 'e.g. request a room upgrade from my phone during check-in',
+    storyBenefitPlaceholder: 'e.g. I can get a better room without waiting on hold with reception',
+    dod: 'Definition of Done', acSubtitle: 'Acceptance Criteria · Given / When / Then',
+    acHint: 'Describe a testable scenario. Given a starting condition, When something happens, Then the system behaves this way.',
+    given: 'Given', when: 'When', then: 'Then',
+    acGivenPlaceholder: 'e.g. a logged-in guest is on the reservation details screen',
+    acWhenPlaceholder: 'e.g. they tap "Request Upgrade" and select a room type',
+    acThenPlaceholder: 'e.g. a confirmation is shown and the front-desk receives a notification',
+    addAC: 'Add Acceptance Criterion', addStory: 'Add User Story', remove: 'Remove', item: 'Item',
+    fieldRequired: 'This field is required.', required: 'Required',
+    footer: 'Internal Use · PM + Tech Lead sign-off required before dev start',
+  },
+  he: {
+    subtitle: 'בונה PRD', step: 'שלב', of: 'מתוך', sectionsLabel: 'סעיפים',
+    exportBtn: 'ייצוא', saved: 'נשמר',
+    exportDocx: 'ייצוא כ-.docx', microsoftWord: 'Microsoft Word',
+    exportTxt: 'ייצוא כ-.txt', plainText: 'טקסט רגיל',
+    back: 'חזור', next: 'הבא',
+    asA: 'בתור', iWantTo: 'אני רוצה ל', soThat: 'כדי ש',
+    storyPersonaPlaceholder: 'לדוגמה: אורח מלון, עובד קבלה, מנהל קומות',
+    storyActionPlaceholder: 'לדוגמה: לבקש שדרוג חדר מהטלפון שלי במהלך הצ\'ק-אין',
+    storyBenefitPlaceholder: 'לדוגמה: אוכל לקבל חדר טוב יותר מבלי להמתין בקו עם הקבלה',
+    dod: 'הגדרת סיום', acSubtitle: 'קריטריוני קבלה · בהינתן / כאשר / אז',
+    acHint: 'תאר תרחיש הניתן לבדיקה. בהינתן תנאי התחלה, כאשר משהו קורה, אז המערכת מתנהגת כך.',
+    given: 'בהינתן', when: 'כאשר', then: 'אז',
+    acGivenPlaceholder: 'לדוגמה: אורח מחובר נמצא במסך פרטי ההזמנה שלו',
+    acWhenPlaceholder: 'לדוגמה: הוא לוחץ על "בקש שדרוג" ובוחר סוג חדר',
+    acThenPlaceholder: 'לדוגמה: מוצגת הודעת אישור וצוות הקבלה מקבל התראה',
+    addAC: 'הוסף קריטריון קבלה', addStory: 'הוסף סיפור משתמש', remove: 'הסר', item: 'פריט',
+    fieldRequired: 'שדה זה הינו חובה.', required: 'חובה',
+    footer: 'לשימוש פנימי · נדרשת אישור PM ו-Tech Lead לפני תחילת פיתוח',
+  },
+};
+
 // ── Design tokens ─────────────────────────────────────────────────
 const C = {
   bg: '#FAFAFA',
@@ -50,6 +108,7 @@ interface SectionDef {
   isStories?: boolean;
   dynamic?: boolean;
   itemLabel?: string;
+  addLabel?: string;
   prefix?: string | null;
   minItems?: number;
   fields?: FieldDef[];
@@ -65,56 +124,81 @@ interface FieldDef {
   rows?: number;
 }
 
-const SECTIONS: SectionDef[] = [
-  {
-    id: 'brief', title: 'Feature Brief',
-    note: 'The elevator pitch. Keep each answer short — this becomes the Jira Epic description.',
-    fields: [
-      { id: 'featureName', label: 'Feature name', type: 'text', placeholder: 'e.g. Guest Room Upgrade Request', required: true, maxLength: 80 },
-      { id: 'what', label: 'What does it do?', type: 'textarea', placeholder: 'e.g. Lets guests request a room upgrade from their phone during check-in, without calling the front desk.', required: true, maxLength: 200, rows: 2 },
-      { id: 'why', label: 'What problem does it solve?', type: 'textarea', placeholder: 'e.g. Guests frequently call reception for upgrades, overloading staff during peak hours and reducing upsell opportunities.', required: true, maxLength: 300, rows: 3 },
-      { id: 'who', label: 'Who uses it?', type: 'text', placeholder: 'e.g. Hotel guests (iOS & Android), Front-desk agents', required: true, maxLength: 120 },
-    ],
-  },
-  {
-    id: 'stories', title: 'User Stories & AC',
-    note: 'One story = one dev task. Split large features into smaller stories. Each story needs at least one AC — that\'s your definition of done for that task.',
-    isStories: true,
-  },
-  {
-    id: 'edge', title: 'Edge Cases',
-    note: 'Optional but recommended. Think about what should happen when things go wrong or inputs are unexpected.',
-    dynamic: true, itemLabel: 'Edge Case', prefix: 'EC', minItems: 1,
-    fields: [
-      { id: 'scenario', label: 'What could go wrong?', type: 'text', placeholder: 'e.g. Guest selects an upgrade but no rooms of that type are available', required: true, maxLength: 120 },
-      { id: 'behavior', label: 'What should the system do?', type: 'textarea', placeholder: 'e.g. Show a "No upgrades available" message and offer to join a waitlist.', required: true, maxLength: 200, rows: 2 },
-      { id: 'errorMsg', label: 'Error message shown to user (if any)', type: 'text', placeholder: 'e.g. "No upgrades are available for your room type right now."', required: false, maxLength: 120 },
-    ],
-  },
-  {
-    id: 'technical', title: 'Technical Notes',
-    note: 'For the tech lead. Fill in what you know — leave blank if uncertain. This can be completed during sprint refinement.',
-    fields: [
-      { id: 'api', label: 'API / Endpoints affected', type: 'textarea', placeholder: 'e.g.\nGET /reservations/{id}/upgrade-options\nPOST /reservations/{id}/upgrade-request', required: false, maxLength: 400, rows: 4 },
-      { id: 'db', label: 'Database / schema changes', type: 'textarea', placeholder: 'e.g. Add upgrade_request table with fields: reservation_id, room_type, status, requested_at', required: false, maxLength: 400, rows: 3 },
-      { id: 'integrations', label: 'Third-party services involved', type: 'textarea', placeholder: 'e.g. PMS (Opera) for room availability, Firebase for push notifications to staff', required: false, maxLength: 300, rows: 3 },
-    ],
-  },
-  {
-    id: 'scope', title: 'Out of Scope',
-    note: 'Explicitly listing what\'s excluded prevents scope creep and keeps the sprint focused. At least 1 item required.',
-    dynamic: true, itemLabel: 'Out of Scope Item', prefix: null, minItems: 1,
-    fields: [{ id: 'item', label: 'What is NOT included in this release?', type: 'text', placeholder: 'e.g. Admin dashboard for managing upgrade requests, Multi-language support, Reporting & analytics', required: true, maxLength: 150 }],
-  },
-  {
-    id: 'design', title: 'Design Links',
-    note: 'Link Figma designs when ready. This section is optional — it can be filled in or updated before sprint start.',
-    fields: [
-      { id: 'figma', label: 'Figma / design file URL', type: 'text', placeholder: 'https://figma.com/...', required: false, maxLength: 300 },
-      { id: 'screens', label: 'Screen names included in the mockup', type: 'textarea', placeholder: 'e.g.\nUpgrade Selection Screen\nConfirmation Screen\nStaff Notification View', required: false, maxLength: 400, rows: 4 },
-    ],
-  },
-];
+function getSections(lang: Lang): SectionDef[] {
+  const he = lang === 'he';
+  return [
+    {
+      id: 'brief',
+      title: he ? 'תקציר הפיצ\'ר' : 'Feature Brief',
+      note: he
+        ? 'נאום המעלית. שמור על תשובות קצרות — הן יהפכו לתיאור ה-Epic בג\'ירה.'
+        : 'The elevator pitch. Keep each answer short — this becomes the Jira Epic description.',
+      fields: [
+        { id: 'featureName', label: he ? 'שם הפיצ\'ר' : 'Feature name', type: 'text', placeholder: he ? 'לדוגמה: בקשת שדרוג חדר אורח' : 'e.g. Guest Room Upgrade Request', required: true, maxLength: 80 },
+        { id: 'what', label: he ? 'מה זה עושה?' : 'What does it do?', type: 'textarea', placeholder: he ? 'לדוגמה: מאפשר לאורחים לבקש שדרוג חדר מהטלפון במהלך הצ\'ק-אין, מבלי להתקשר לקבלה.' : 'e.g. Lets guests request a room upgrade from their phone during check-in, without calling the front desk.', required: true, maxLength: 200, rows: 2 },
+        { id: 'why', label: he ? 'איזו בעיה זה פותר?' : 'What problem does it solve?', type: 'textarea', placeholder: he ? 'לדוגמה: אורחים מתקשרים לקבלה לבקשת שדרוגים — זה עמוס את הצוות בשעות עומס ומפחית הכנסות מ-upsell.' : 'e.g. Guests frequently call reception for upgrades, overloading staff during peak hours and reducing upsell opportunities.', required: true, maxLength: 300, rows: 3 },
+        { id: 'who', label: he ? 'מי משתמש בזה?' : 'Who uses it?', type: 'text', placeholder: he ? 'לדוגמה: אורחי המלון (iOS ו-Android), עובדי קבלה' : 'e.g. Hotel guests (iOS & Android), Front-desk agents', required: true, maxLength: 120 },
+      ],
+    },
+    {
+      id: 'stories',
+      title: he ? 'סיפורי משתמש וקריטריוני קבלה' : 'User Stories & AC',
+      note: he
+        ? 'סיפור אחד = משימת פיתוח אחת. פצל פיצ\'רים גדולים לסיפורים קטנים. כל סיפור צריך לפחות קריטריון קבלה אחד — זו הגדרת הסיום שלך.'
+        : 'One story = one dev task. Split large features into smaller stories. Each story needs at least one AC — that\'s your definition of done for that task.',
+      isStories: true,
+    },
+    {
+      id: 'edge',
+      title: he ? 'מקרי קצה' : 'Edge Cases',
+      note: he
+        ? 'אופציונלי אבל מומלץ. חשוב מה צריך לקרות כשדברים משתבשים או כשהקלט אינו צפוי.'
+        : 'Optional but recommended. Think about what should happen when things go wrong or inputs are unexpected.',
+      dynamic: true, itemLabel: he ? 'מקרה קצה' : 'Edge Case',
+      addLabel: he ? 'הוסף מקרה קצה' : 'Add Edge Case',
+      prefix: 'EC', minItems: 1,
+      fields: [
+        { id: 'scenario', label: he ? 'מה יכול להשתבש?' : 'What could go wrong?', type: 'text', placeholder: he ? 'לדוגמה: האורח בוחר שדרוג אך אין חדרים זמינים מסוג זה' : 'e.g. Guest selects an upgrade but no rooms of that type are available', required: true, maxLength: 120 },
+        { id: 'behavior', label: he ? 'מה המערכת צריכה לעשות?' : 'What should the system do?', type: 'textarea', placeholder: he ? 'לדוגמה: הצג הודעה "אין שדרוגים זמינים" והצע להצטרף לרשימת המתנה.' : 'e.g. Show a "No upgrades available" message and offer to join a waitlist.', required: true, maxLength: 200, rows: 2 },
+        { id: 'errorMsg', label: he ? 'הודעת שגיאה למשתמש (אם קיימת)' : 'Error message shown to user (if any)', type: 'text', placeholder: he ? 'לדוגמה: "אין שדרוגים זמינים לסוג החדר שלך כרגע."' : 'e.g. "No upgrades are available for your room type right now."', required: false, maxLength: 120 },
+      ],
+    },
+    {
+      id: 'technical',
+      title: he ? 'הערות טכניות' : 'Technical Notes',
+      note: he
+        ? 'עבור ה-Tech Lead. מלא מה שאתה יודע — השאר ריק אם לא בטוח. ניתן להשלים בזמן ה-Sprint Refinement.'
+        : 'For the tech lead. Fill in what you know — leave blank if uncertain. This can be completed during sprint refinement.',
+      fields: [
+        { id: 'api', label: he ? 'API / נקודות קצה מושפעות' : 'API / Endpoints affected', type: 'textarea', placeholder: he ? 'לדוגמה:\nGET /reservations/{id}/upgrade-options\nPOST /reservations/{id}/upgrade-request' : 'e.g.\nGET /reservations/{id}/upgrade-options\nPOST /reservations/{id}/upgrade-request', required: false, maxLength: 400, rows: 4 },
+        { id: 'db', label: he ? 'שינויי מסד נתונים / סכמה' : 'Database / schema changes', type: 'textarea', placeholder: he ? 'לדוגמה: הוסף טבלת upgrade_request עם שדות: reservation_id, room_type, status, requested_at' : 'e.g. Add upgrade_request table with fields: reservation_id, room_type, status, requested_at', required: false, maxLength: 400, rows: 3 },
+        { id: 'integrations', label: he ? 'שירותי צד שלישי מעורבים' : 'Third-party services involved', type: 'textarea', placeholder: he ? 'לדוגמה: PMS (Opera) לזמינות חדרים, Firebase להתראות לצוות' : 'e.g. PMS (Opera) for room availability, Firebase for push notifications to staff', required: false, maxLength: 300, rows: 3 },
+      ],
+    },
+    {
+      id: 'scope',
+      title: he ? 'מחוץ לתחום' : 'Out of Scope',
+      note: he
+        ? 'רישום מפורש של מה שלא נכלל מונע זחילת היקף ומשמר את המיקוד בספרינט. נדרש לפחות פריט אחד.'
+        : 'Explicitly listing what\'s excluded prevents scope creep and keeps the sprint focused. At least 1 item required.',
+      dynamic: true, itemLabel: he ? 'פריט מחוץ לתחום' : 'Out of Scope Item',
+      addLabel: he ? 'הוסף פריט מחוץ לתחום' : 'Add Out of Scope Item',
+      prefix: null, minItems: 1,
+      fields: [{ id: 'item', label: he ? 'מה לא נכלל במהדורה זו?' : 'What is NOT included in this release?', type: 'text', placeholder: he ? 'לדוגמה: דשבורד ניהול לבקשות שדרוג, תמיכה בריבוי שפות, דוחות וניתוחים' : 'e.g. Admin dashboard for managing upgrade requests, Multi-language support, Reporting & analytics', required: true, maxLength: 150 }],
+    },
+    {
+      id: 'design',
+      title: he ? 'קישורי עיצוב' : 'Design Links',
+      note: he
+        ? 'קשר עיצובי Figma כשיהיו מוכנים. סעיף זה אופציונלי — ניתן למלא או לעדכן לפני תחילת הספרינט.'
+        : 'Link Figma designs when ready. This section is optional — it can be filled in or updated before sprint start.',
+      fields: [
+        { id: 'figma', label: he ? 'קישור לקובץ Figma / עיצוב' : 'Figma / design file URL', type: 'text', placeholder: 'https://figma.com/...', required: false, maxLength: 300 },
+        { id: 'screens', label: he ? 'שמות מסכים הכלולים במוקאפ' : 'Screen names included in the mockup', type: 'textarea', placeholder: he ? 'לדוגמה:\nמסך בחירת שדרוג\nמסך אישור\nתצוגת התראת צוות' : 'e.g.\nUpgrade Selection Screen\nConfirmation Screen\nStaff Notification View', required: false, maxLength: 400, rows: 4 },
+      ],
+    },
+  ];
+}
 
 const newAC = (): AC => ({ given: '', when: '', then: '' });
 const newStory = (): Story => ({ persona: '', action: '', benefit: '', acs: [newAC()] });
@@ -375,9 +459,9 @@ function Btn({ variant = 'ghost', size = 'md', children, style = {}, disabled, o
 }
 
 // ── FieldInput ────────────────────────────────────────────────────
-function FieldInput({ field, value, onChange, error, inputId, mob }: {
+function FieldInput({ field, value, onChange, error, inputId, mob, errorText = 'This field is required.' }: {
   field: FieldDef; value: string; onChange: (v: string) => void;
-  error?: string | boolean; inputId?: string; mob?: boolean;
+  error?: string | boolean; inputId?: string; mob?: boolean; errorText?: string;
 }) {
   const id = inputId || field.id;
   const [focused, setFocused] = useState(false);
@@ -414,15 +498,15 @@ function FieldInput({ field, value, onChange, error, inputId, mob }: {
         : <input id={id} type="text" value={value} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
                  onChange={e => onChange(e.target.value)} placeholder={field.placeholder}
                  maxLength={field.maxLength} style={baseInput} />}
-      {error && <div style={{ fontSize: 11, color: C.danger, marginTop: 5 }}>This field is required.</div>}
+      {error && <div style={{ fontSize: 11, color: C.danger, marginTop: 5 }}>{errorText}</div>}
     </div>
   );
 }
 
 // ── ACField ───────────────────────────────────────────────────────
-function ACField({ label, placeholder, value, onChange, error, mob }: {
+function ACField({ label, placeholder, value, onChange, error, mob, errorText = 'Required' }: {
   label: string; placeholder: string; value: string;
-  onChange: (v: string) => void; error?: string | boolean; mob?: boolean;
+  onChange: (v: string) => void; error?: string | boolean; mob?: boolean; errorText?: string;
 }) {
   const [focused, setFocused] = useState(false);
   const base: React.CSSProperties = {
@@ -445,7 +529,7 @@ function ACField({ label, placeholder, value, onChange, error, mob }: {
       <div>
         <textarea value={value} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
                   onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={2} style={base} />
-        {error && <div style={{ fontSize: 10.5, color: C.danger, marginTop: 4 }}>Required</div>}
+        {error && <div style={{ fontSize: 10.5, color: C.danger, marginTop: 4 }}>{errorText}</div>}
       </div>
     </div>
   );
@@ -464,7 +548,12 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [lang, setLang] = useState<Lang>('en');
   const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  const sections = getSections(lang);
+  const ui = UI[lang];
+  const isRtl = lang === 'he';
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 820);
@@ -533,7 +622,7 @@ export default function App() {
 
   const validate = (): ErrorMap => {
     const errs: ErrorMap = {};
-    SECTIONS.forEach(s => {
+    sections.forEach(s => {
       if (s.isStories) {
         data.stories.forEach((story, si) => {
           (['persona', 'action', 'benefit'] as const).forEach(f => { if (!story[f]?.trim()) errs[`story_${si}_${f}`] = 'Required'; });
@@ -555,7 +644,7 @@ export default function App() {
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       setSubmitted(true);
-      const firstErr = SECTIONS.find(s => {
+      const firstErr = sections.find(s => {
         if (s.isStories) return data.stories.some((story, si) => ['persona','action','benefit'].some(f => errs[`story_${si}_${f}`]) || story.acs.some((_, ai) => ['given','when','then'].some(f => errs[`ac_${si}_${ai}_${f}`])));
         if (s.dynamic) return (data[s.id as keyof PRDData] as unknown as Record<string, string>[]).some((_, i) => s.fields?.some(f => errs[`${s.id}_${i}_${f.id}`]));
         return s.fields?.some(f => errs[f.id]);
@@ -585,9 +674,9 @@ export default function App() {
     setExporting(false);
   };
 
-  const currentSection = SECTIONS.find(s => s.id === activeSection)!;
-  const currentIndex = SECTIONS.findIndex(s => s.id === activeSection);
-  const progress = ((currentIndex + 1) / SECTIONS.length) * 100;
+  const currentSection = sections.find(s => s.id === activeSection)!;
+  const currentIndex = sections.findIndex(s => s.id === activeSection);
+  const progress = ((currentIndex + 1) / sections.length) * 100;
   const mob = isMobile;
 
   const sectionHasErrors = (s: SectionDef) => {
@@ -598,7 +687,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex', flexDirection: 'column' }}>
+    <div dir={isRtl ? 'rtl' : 'ltr'} style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex', flexDirection: 'column' }}>
 
       {/* Header */}
       <header style={{
@@ -629,28 +718,44 @@ export default function App() {
               }}>F</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>Fattal</span>
-                <span style={{ fontSize: 13, color: C.textFaint, fontWeight: 400 }}>/ PRD Builder</span>
+                <span style={{ fontSize: 13, color: C.textFaint, fontWeight: 400 }}>/ {ui.subtitle}</span>
               </div>
             </div>
           </div>
 
           {!mob && (
             <div style={{ fontSize: 12, color: C.textSubtle, fontVariantNumeric: 'tabular-nums' }}>
-              Step <span style={{ color: C.text, fontWeight: 500 }}>{currentIndex + 1}</span>
-              <span style={{ color: C.textFaint }}> / {SECTIONS.length}</span>
+              {ui.step} <span style={{ color: C.text, fontWeight: 500 }}>{currentIndex + 1}</span>
+              <span style={{ color: C.textFaint }}> {ui.of} {sections.length}</span>
               <span style={{ color: C.textFaint, padding: '0 8px' }}>·</span>
               <span>{currentSection.title}</span>
             </div>
           )}
 
-          <div ref={exportMenuRef} style={{ position: 'relative', display: 'flex' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Language toggle */}
+            <div style={{ display: 'flex', border: `1px solid ${C.border}`, borderRadius: 5, overflow: 'hidden', flexShrink: 0 }}>
+              {(['en', 'he'] as Lang[]).map(l => (
+                <button key={l} onClick={() => setLang(l)} style={{
+                  padding: '5px 9px', fontSize: 11, fontWeight: 600,
+                  background: lang === l ? C.accent : 'transparent',
+                  color: lang === l ? C.accentText : C.textMuted,
+                  border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+                  transition: 'background 120ms ease, color 120ms ease',
+                }}>
+                  {l === 'en' ? 'EN' : 'עב'}
+                </button>
+              ))}
+            </div>
+
+            <div ref={exportMenuRef} style={{ position: 'relative', display: 'flex' }}>
             <Btn
               variant="primary" size="md"
               onClick={() => handleExport('docx')}
               disabled={exporting}
               style={{ borderRadius: '5px 0 0 5px', borderRight: '1px solid rgba(255,255,255,0.15)', minWidth: mob ? 90 : 110 }}
             >
-              {exporting ? '...' : exportDone ? <><CheckIcon /> Saved</> : <><DownloadIcon /> Export</>}
+              {exporting ? '...' : exportDone ? <><CheckIcon /> {ui.saved}</> : <><DownloadIcon /> {ui.exportBtn}</>}
             </Btn>
             <Btn
               variant="primary" size="md"
@@ -668,8 +773,8 @@ export default function App() {
                 minWidth: 180, zIndex: 200, overflow: 'hidden', padding: 4,
               }}>
                 {([
-                  { fmt: 'docx' as const, label: 'Export as .docx', sub: 'Microsoft Word' },
-                  { fmt: 'txt'  as const, label: 'Export as .txt',  sub: 'Plain text' },
+                  { fmt: 'docx' as const, label: ui.exportDocx, sub: ui.microsoftWord },
+                  { fmt: 'txt'  as const, label: ui.exportTxt,  sub: ui.plainText },
                 ]).map(it => (
                   <button key={it.fmt}
                     onClick={() => { handleExport(it.fmt); setShowExportMenu(false); }}
@@ -692,13 +797,15 @@ export default function App() {
                 ))}
               </div>
             )}
+            </div>
           </div>
         </div>
 
         {/* Progress line */}
         <div style={{ height: 1, background: C.border, position: 'relative' }}>
           <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0,
+            position: 'absolute', top: 0, bottom: 0,
+            ...(isRtl ? { right: 0 } : { left: 0 }),
             width: `${progress}%`, background: C.text,
             transition: 'width 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
           }} />
@@ -708,7 +815,7 @@ export default function App() {
       {/* Mobile drawer */}
       {mob && menuOpen && (
         <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
-          {SECTIONS.map((s, i) => {
+          {sections.map((s, i) => {
             const isActive = s.id === activeSection;
             const hasErr = sectionHasErrors(s);
             return (
@@ -737,9 +844,9 @@ export default function App() {
         {!mob && (
           <aside style={{ width: 220, flexShrink: 0 }}>
             <div style={{ position: 'sticky', top: 80 }}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0 10px', marginBottom: 10 }}>Sections</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0 10px', marginBottom: 10 }}>{ui.sectionsLabel}</div>
               <nav style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {SECTIONS.map((s, i) => {
+                {sections.map((s, i) => {
                   const isActive = s.id === activeSection;
                   const hasErr = sectionHasErrors(s);
                   return (
@@ -769,7 +876,7 @@ export default function App() {
           {/* Mobile pills */}
           {mob && (
             <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
-              {SECTIONS.map((s, i) => {
+              {sections.map((s, i) => {
                 const isActive = s.id === activeSection;
                 const hasErr = sectionHasErrors(s);
                 return (
@@ -816,34 +923,33 @@ export default function App() {
                     }}>
                       <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.01em' }}>US-{String(si + 1).padStart(2, '0')}</span>
                       {data.stories.length > 1 && (
-                        <Btn variant="ghost" size="sm" onClick={() => removeStory(si)}><TrashIcon /> Remove</Btn>
+                        <Btn variant="ghost" size="sm" onClick={() => removeStory(si)}><TrashIcon /> {ui.remove}</Btn>
                       )}
                     </div>
                     <div style={{ padding: mob ? '16px 14px 4px' : '20px 18px 4px' }}>
                       {([
-                        { id: 'persona' as const, label: 'As a', placeholder: 'e.g. hotel guest, front-desk agent, housekeeping supervisor', maxLength: 60 },
-                        { id: 'action'  as const, label: 'I want to', placeholder: 'e.g. request a room upgrade from my phone during check-in', maxLength: 120 },
-                        { id: 'benefit' as const, label: 'So that', placeholder: 'e.g. I can get a better room without waiting on hold with reception', maxLength: 150 },
+                        { id: 'persona' as const, label: ui.asA,      placeholder: ui.storyPersonaPlaceholder, maxLength: 60 },
+                        { id: 'action'  as const, label: ui.iWantTo,  placeholder: ui.storyActionPlaceholder,  maxLength: 120 },
+                        { id: 'benefit' as const, label: ui.soThat,   placeholder: ui.storyBenefitPlaceholder, maxLength: 150 },
                       ]).map(f => (
                         <FieldInput key={f.id}
                           field={{ ...f, type: 'text', required: true }}
                           value={story[f.id] || ''}
                           onChange={v => updateStory(si, f.id, v)}
                           error={submitted && errors[`story_${si}_${f.id}`]}
+                          errorText={ui.fieldRequired}
                           mob={mob}
                         />
                       ))}
                     </div>
 
                     {/* Definition of Done */}
-                    <div style={{ margin: mob ? '4px 14px 16px' : '4px 18px 18px', borderLeft: `2px solid ${C.acAccent}`, paddingLeft: mob ? 14 : 18 }}>
+                    <div style={{ margin: mob ? '4px 14px 16px' : '4px 18px 18px', ...(isRtl ? { borderRight: `2px solid ${C.acAccent}`, paddingRight: mob ? 14 : 18 } : { borderLeft: `2px solid ${C.acAccent}`, paddingLeft: mob ? 14 : 18 }) }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Definition of Done</span>
-                        <span style={{ fontSize: 11.5, color: C.textFaint, fontWeight: 400 }}>Acceptance Criteria · Given / When / Then</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{ui.dod}</span>
+                        <span style={{ fontSize: 11.5, color: C.textFaint, fontWeight: 400 }}>{ui.acSubtitle}</span>
                       </div>
-                      <p style={{ fontSize: 11.5, color: C.textSubtle, margin: '0 0 14px', lineHeight: 1.5 }}>
-                        Describe a testable scenario. <span style={{ color: C.textFaint }}>Given</span> a starting condition, <span style={{ color: C.textFaint }}>When</span> something happens, <span style={{ color: C.textFaint }}>Then</span> the system behaves this way.
-                      </p>
+                      <p style={{ fontSize: 11.5, color: C.textSubtle, margin: '0 0 14px', lineHeight: 1.5 }}>{ui.acHint}</p>
                       {story.acs.map((ac, ai) => (
                         <div key={ai} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: ai < story.acs.length - 1 ? `1px dashed ${C.border}` : 'none' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -856,32 +962,33 @@ export default function App() {
                               }}
                                 onMouseEnter={e => (e.currentTarget.style.color = C.danger)}
                                 onMouseLeave={e => (e.currentTarget.style.color = C.textFaint)}
-                              >Remove</button>
+                              >{ui.remove}</button>
                             )}
                           </div>
                           {([
-                            { id: 'given' as const, label: 'Given', placeholder: 'e.g. a logged-in guest is on the reservation details screen' },
-                            { id: 'when'  as const, label: 'When',  placeholder: 'e.g. they tap "Request Upgrade" and select a room type' },
-                            { id: 'then'  as const, label: 'Then',  placeholder: 'e.g. a confirmation is shown and the front-desk receives a notification' },
+                            { id: 'given' as const, label: ui.given, placeholder: ui.acGivenPlaceholder },
+                            { id: 'when'  as const, label: ui.when,  placeholder: ui.acWhenPlaceholder },
+                            { id: 'then'  as const, label: ui.then,  placeholder: ui.acThenPlaceholder },
                           ]).map(f => (
                             <ACField key={f.id}
                               label={f.label} placeholder={f.placeholder}
                               value={ac[f.id] || ''}
                               onChange={v => updateAC(si, ai, f.id, v)}
                               error={submitted && errors[`ac_${si}_${ai}_${f.id}`]}
+                              errorText={ui.required}
                               mob={mob}
                             />
                           ))}
                         </div>
                       ))}
                       <Btn variant="dashed" size="sm" onClick={() => addAC(si)} style={{ width: '100%' }}>
-                        <PlusIcon /> Add Acceptance Criterion
+                        <PlusIcon /> {ui.addAC}
                       </Btn>
                     </div>
                   </div>
                 ))}
                 <Btn variant="dashed" size="md" onClick={addStory} style={{ width: '100%', height: mob ? 44 : 38 }}>
-                  <PlusIcon /> Add User Story
+                  <PlusIcon /> {ui.addStory}
                 </Btn>
               </div>
             )}
@@ -893,6 +1000,7 @@ export default function App() {
                 value={(data[field.id as keyof PRDData] as string) || ''}
                 onChange={v => updateField(field.id, v)}
                 error={submitted && errors[field.id]}
+                errorText={ui.fieldRequired}
                 mob={mob}
               />
             ))}
@@ -904,10 +1012,10 @@ export default function App() {
                   <div key={idx} style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: mob ? '14px 14px 2px' : '20px 20px 4px', marginBottom: 12, background: C.surface }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                       <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {currentSection.prefix ? `${currentSection.prefix}-${String(idx + 1).padStart(2, '0')}` : `Item ${String(idx + 1).padStart(2, '0')}`}
+                        {currentSection.prefix ? `${currentSection.prefix}-${String(idx + 1).padStart(2, '0')}` : `${ui.item} ${String(idx + 1).padStart(2, '0')}`}
                       </span>
                       {(data[currentSection.id as keyof PRDData] as object[]).length > (currentSection.minItems || 1) && (
-                        <Btn variant="ghost" size="sm" onClick={() => removeItem(currentSection.id as keyof PRDData, idx)}><TrashIcon /> Remove</Btn>
+                        <Btn variant="ghost" size="sm" onClick={() => removeItem(currentSection.id as keyof PRDData, idx)}><TrashIcon /> {ui.remove}</Btn>
                       )}
                     </div>
                     {currentSection.fields?.map(field => (
@@ -916,6 +1024,7 @@ export default function App() {
                         value={item[field.id] || ''}
                         onChange={v => updateDynamic(currentSection.id as keyof PRDData, idx, field.id, v)}
                         error={submitted && errors[`${currentSection.id}_${idx}_${field.id}`]}
+                        errorText={ui.fieldRequired}
                         inputId={`${currentSection.id}_${idx}_${field.id}`}
                         mob={mob}
                       />
@@ -923,33 +1032,33 @@ export default function App() {
                   </div>
                 ))}
                 <Btn variant="dashed" size="md" onClick={() => addItem(currentSection.id as keyof PRDData, currentSection)} style={{ width: '100%', height: mob ? 44 : 38 }}>
-                  <PlusIcon /> Add {currentSection.itemLabel}
+                  <PlusIcon /> {currentSection.addLabel}
                 </Btn>
               </div>
             )}
 
             {/* Footer nav */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, paddingTop: 18, borderTop: `1px solid ${C.borderSubtle}` }}>
-              <Btn variant="outline" size="md" onClick={() => currentIndex > 0 && setActiveSection(SECTIONS[currentIndex - 1].id)} disabled={currentIndex === 0}>
-                <ArrowLeftIcon /> Back
+              <Btn variant="outline" size="md" onClick={() => currentIndex > 0 && setActiveSection(sections[currentIndex - 1].id)} disabled={currentIndex === 0}>
+                {isRtl ? <ArrowRightIcon /> : <ArrowLeftIcon />} {ui.back}
               </Btn>
               <span style={{ fontSize: 12, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
-                {String(currentIndex + 1).padStart(2, '0')} / {String(SECTIONS.length).padStart(2, '0')}
+                {String(currentIndex + 1).padStart(2, '0')} / {String(sections.length).padStart(2, '0')}
               </span>
-              {currentIndex < SECTIONS.length - 1 ? (
-                <Btn variant="primary" size="md" onClick={() => setActiveSection(SECTIONS[currentIndex + 1].id)}>
-                  Next <ArrowRightIcon />
+              {currentIndex < sections.length - 1 ? (
+                <Btn variant="primary" size="md" onClick={() => setActiveSection(sections[currentIndex + 1].id)}>
+                  {ui.next} {isRtl ? <ArrowLeftIcon /> : <ArrowRightIcon />}
                 </Btn>
               ) : (
                 <Btn variant="primary" size="md" onClick={() => handleExport('docx')} disabled={exporting}>
-                  {exporting ? '...' : <><DownloadIcon /> Export</>}
+                  {exporting ? '...' : <><DownloadIcon /> {ui.exportBtn}</>}
                 </Btn>
               )}
             </div>
           </section>
 
           <div style={{ textAlign: 'center', padding: '24px 0 16px', fontSize: 11, color: C.textFaint }}>
-            Internal Use · PM + Tech Lead sign-off required before dev start
+            {ui.footer}
           </div>
         </div>
       </main>
