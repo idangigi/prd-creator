@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat,
+  AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat, ImageRun,
 } from 'docx';
 
 // ── Language ───────────────────────────────────────────────────────
@@ -20,6 +20,7 @@ const UI: Record<Lang, {
   addAC: string; addStory: string; remove: string; item: string;
   fieldRequired: string; required: string; footer: string;
   filesUpload: string; filesUploadSub: string; filesNone: string;
+  storyImages: string; addImage: string; imageLabelPlaceholder: string;
 }> = {
   en: {
     subtitle: 'PRD Builder', step: 'Step', of: '/', sectionsLabel: 'Sections',
@@ -42,6 +43,7 @@ const UI: Record<Lang, {
     footer: 'Internal Use · PM + Tech Lead sign-off required before dev start',
     filesUpload: 'Click to upload or drag & drop', filesUploadSub: 'PDF, DOCX, XLSX, PNG, JPG and more',
     filesNone: 'No files attached yet',
+    storyImages: 'Images', addImage: 'Add image', imageLabelPlaceholder: 'Add a label...',
   },
   he: {
     subtitle: 'בונה PRD', step: 'שלב', of: 'מתוך', sectionsLabel: 'סעיפים',
@@ -64,6 +66,7 @@ const UI: Record<Lang, {
     footer: 'לשימוש פנימי · נדרשת אישור PM ו-Tech Lead לפני תחילת פיתוח',
     filesUpload: 'לחץ להעלאה או גרור ושחרר', filesUploadSub: 'PDF, DOCX, XLSX, PNG, JPG ועוד',
     filesNone: 'לא צורפו קבצים עדיין',
+    storyImages: 'תמונות', addImage: 'הוסף תמונה', imageLabelPlaceholder: 'הוסף תווית...',
   },
 };
 
@@ -87,7 +90,8 @@ const C = {
 
 // ── Data model ────────────────────────────────────────────────────
 interface AC { given: string; when: string; then: string }
-interface Story { persona: string; action: string; benefit: string; acs: AC[] }
+interface StoryImage { id: string; name: string; url: string; label: string; mimeType: string }
+interface Story { persona: string; action: string; benefit: string; acs: AC[]; images: StoryImage[] }
 interface EdgeCase { scenario: string; behavior: string; errorMsg: string }
 interface ScopeItem { item: string }
 interface AttachedFile { id: string; name: string; size: number; type: string; url: string }
@@ -217,7 +221,7 @@ function getSections(lang: Lang): SectionDef[] {
 }
 
 const newAC = (): AC => ({ given: '', when: '', then: '' });
-const newStory = (): Story => ({ persona: '', action: '', benefit: '', acs: [newAC()] });
+const newStory = (): Story => ({ persona: '', action: '', benefit: '', acs: [newAC()], images: [] });
 
 function initData(): PRDData {
   return {
@@ -279,7 +283,11 @@ async function generateDocx(data: PRDData): Promise<Blob> {
     })] })],
   });
 
-  const storyBlock = (story: Story, si: number) => {
+  const docxImageTypeMap: Record<string, 'png' | 'jpg' | 'gif' | 'bmp'> = {
+    'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif', 'image/bmp': 'bmp',
+  };
+
+  const storyBlock = async (story: Story, si: number) => {
     const c1 = Math.round(W * 0.14), c2 = W - c1;
     const storyRows = ['As a', 'I want to', 'So that'].map((lbTxt, li) => new TableRow({ children: [
       new TableCell({ borders: AB, shading: { fill: LBLUE, type: ShadingType.CLEAR }, margins: M, width: { size: c1, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: lbTxt, bold: true, size: 18, color: BLUE, font: 'Calibri' })] })] }),
@@ -298,11 +306,40 @@ async function generateDocx(data: PRDData): Promise<Blob> {
       sp1(),
     ]);
 
+    const imageBlocks: (Paragraph)[] = [];
+    if (story.images && story.images.length > 0) {
+      imageBlocks.push(new Paragraph({ ...sp(100, 40), shading: { fill: 'D6E8FA', type: ShadingType.CLEAR }, children: [new TextRun({ text: '  STORY IMAGES', bold: true, size: 18, color: MID, font: 'Calibri' })] }));
+      for (const img of story.images) {
+        const imgType = docxImageTypeMap[img.mimeType];
+        if (!imgType) {
+          imageBlocks.push(new Paragraph({ ...sp(30, 30), children: [new TextRun({ text: `[Image: ${img.name}${img.label ? ` — ${img.label}` : ''}]`, size: 18, italics: true, color: '888888', font: 'Calibri' })] }));
+          continue;
+        }
+        try {
+          const resp = await fetch(img.url);
+          const data = await resp.arrayBuffer();
+          const imgEl = new Image();
+          await new Promise<void>(res => { imgEl.onload = () => res(); imgEl.onerror = () => res(); imgEl.src = img.url; });
+          const maxW = 400;
+          const scale = imgEl.naturalWidth > 0 ? Math.min(1, maxW / imgEl.naturalWidth) : 1;
+          const w = Math.round((imgEl.naturalWidth || 400) * scale);
+          const h = Math.round((imgEl.naturalHeight || 300) * scale);
+          if (img.label) {
+            imageBlocks.push(new Paragraph({ ...sp(30, 8), children: [new TextRun({ text: img.label, size: 18, italics: true, color: '555555', font: 'Calibri' })] }));
+          }
+          imageBlocks.push(new Paragraph({ ...sp(8, 30), children: [new ImageRun({ data, transformation: { width: w, height: h } })] }));
+        } catch {
+          imageBlocks.push(new Paragraph({ ...sp(30, 30), children: [new TextRun({ text: `[Image: ${img.name}${img.label ? ` — ${img.label}` : ''}]`, size: 18, italics: true, color: '888888', font: 'Calibri' })] }));
+        }
+      }
+    }
+
     return [
       new Paragraph({ ...sp(200, 40), children: [new TextRun({ text: 'US-' + String(si + 1).padStart(2, '0'), bold: true, size: 24, color: BLUE, font: 'Calibri' })] }),
       new Table({ width: { size: W, type: WidthType.DXA }, columnWidths: [c1, c2], rows: storyRows }),
       new Paragraph({ ...sp(120, 40), shading: { fill: 'D6E8FA', type: ShadingType.CLEAR }, children: [new TextRun({ text: '  v DEFINITION OF DONE   Acceptance Criteria - Given / When / Then', bold: true, size: 18, color: MID, font: 'Calibri' })] }),
       ...acBlocks,
+      ...imageBlocks,
       sp2(),
     ];
   };
@@ -359,7 +396,7 @@ async function generateDocx(data: PRDData): Promise<Blob> {
         noteBox('Each story includes its own Definition of Done (Acceptance Criteria).'),
         ruleBox('All story rows are mandatory. Every story must have at least one AC.'),
         sp2(),
-        ...data.stories.flatMap((story, si) => storyBlock(story, si)),
+        ...(await Promise.all(data.stories.map((story, si) => storyBlock(story, si)))).flat(),
         h1('3. Edge Cases'),
         noteBox('Minimum 2 edge cases required.'),
         sp2(),
@@ -401,7 +438,11 @@ function generateTxt(data: PRDData) {
   text += `2. USER STORIES & AC\n${'-'.repeat(30)}\n`;
   data.stories.forEach((s, si) => {
     text += `\nUS-${String(si + 1).padStart(2, '0')}: As a ${s.persona}, I want to ${s.action}, so that ${s.benefit}.\n  Definition of Done:\n`;
-    s.acs.forEach((ac, ai) => { text += `  AC-${String(ai + 1).padStart(2, '0')}: Given: ${ac.given} | When: ${ac.when} | Then: ${ac.then}\n`; });
+    s.acs.forEach((ac, ai) => { text += `  AC-${String(ai + 1).padStart(2, '00')}: Given: ${ac.given} | When: ${ac.when} | Then: ${ac.then}\n`; });
+    if (s.images && s.images.length > 0) {
+      text += `  Images:\n`;
+      s.images.forEach(img => { text += `    - ${img.name}${img.label ? ` (${img.label})` : ''}\n`; });
+    }
   });
   text += `\n3. EDGE CASES\n${'-'.repeat(30)}\n`;
   (data.edge || []).forEach((e, i) => { text += `EC-${String(i + 1).padStart(2, '0')}: ${e.scenario}\n  Expected: ${e.behavior}\n${e.errorMsg ? `  Error: "${e.errorMsg}"\n` : ''}`; });
@@ -443,6 +484,7 @@ const DownloadIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill=
 const DocIcon = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9.5 1.5V5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>;
 const TrashIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.5 9.5h6L11.5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const UploadIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+const ImageIcon = () => <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><circle cx="5.5" cy="5.5" r="1.2" fill="currentColor"/><path d="M1.5 11l3.5-3.5 2.5 2.5L10 7.5l4.5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 
 // ── Btn ───────────────────────────────────────────────────────────
 type BtnVariant = 'primary' | 'outline' | 'ghost' | 'subtle' | 'dashed';
@@ -590,6 +632,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const storyImageInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const sections = getSections(lang);
   const ui = UI[lang];
@@ -659,6 +702,30 @@ export default function App() {
     s[si] = { ...s[si], acs: s[si].acs.filter((_, i) => i !== ai) };
     return { ...d, stories: s };
   });
+
+  const addStoryImages = (si: number, files: FileList) => {
+    const newImages: StoryImage[] = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .map(f => ({ id: Math.random().toString(36).slice(2), name: f.name, url: URL.createObjectURL(f), label: '', mimeType: f.type }));
+    if (newImages.length === 0) return;
+    setData(d => { const s = [...d.stories]; s[si] = { ...s[si], images: [...(s[si].images || []), ...newImages] }; return { ...d, stories: s }; });
+  };
+  const removeStoryImage = (si: number, imgId: string) => {
+    setData(d => {
+      const s = [...d.stories];
+      const img = s[si].images?.find(i => i.id === imgId);
+      if (img) URL.revokeObjectURL(img.url);
+      s[si] = { ...s[si], images: (s[si].images || []).filter(i => i.id !== imgId) };
+      return { ...d, stories: s };
+    });
+  };
+  const updateStoryImageLabel = (si: number, imgId: string, label: string) => {
+    setData(d => {
+      const s = [...d.stories];
+      s[si] = { ...s[si], images: (s[si].images || []).map(i => i.id === imgId ? { ...i, label } : i) };
+      return { ...d, stories: s };
+    });
+  };
 
   const handleFileDrop = (fileList: FileList) => {
     const newFiles: AttachedFile[] = Array.from(fileList).map(f => ({
@@ -1040,6 +1107,59 @@ export default function App() {
                       <Btn variant="dashed" size="sm" onClick={() => addAC(si)} style={{ width: '100%' }}>
                         <PlusIcon /> {ui.addAC}
                       </Btn>
+                    </div>
+
+                    {/* Story Images */}
+                    <div style={{ padding: mob ? '4px 14px 16px' : '4px 18px 16px' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        style={{ display: 'none' }}
+                        ref={el => { storyImageInputRefs.current[si] = el; }}
+                        onChange={e => { if (e.target.files) addStoryImages(si, e.target.files); e.currentTarget.value = ''; }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: story.images?.length > 0 ? 10 : 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{ui.storyImages}</span>
+                        <Btn variant="ghost" size="sm" onClick={() => storyImageInputRefs.current[si]?.click()}>
+                          <ImageIcon /> {ui.addImage}
+                        </Btn>
+                      </div>
+                      {story.images?.length > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: mob ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                          {story.images.map(img => (
+                            <div key={img.id} style={{ border: `1px solid ${C.border}`, borderRadius: 5, overflow: 'hidden', background: C.bg }}>
+                              <div style={{ position: 'relative', height: 90, background: C.borderSubtle }}>
+                                <img src={img.url} alt={img.label || img.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                <button
+                                  onClick={() => removeStoryImage(si, img.id)}
+                                  style={{
+                                    position: 'absolute', top: 4, right: 4,
+                                    background: 'rgba(0,0,0,0.45)', border: 'none', borderRadius: 3,
+                                    color: '#fff', width: 18, height: 18, cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 13, lineHeight: 1, padding: 0, fontWeight: 400,
+                                  }}
+                                >×</button>
+                              </div>
+                              <div style={{ padding: '5px 7px' }}>
+                                <input
+                                  type="text"
+                                  value={img.label}
+                                  onChange={e => updateStoryImageLabel(si, img.id, e.target.value)}
+                                  placeholder={ui.imageLabelPlaceholder}
+                                  maxLength={80}
+                                  style={{
+                                    width: '100%', border: 'none', outline: 'none', background: 'transparent',
+                                    fontSize: 11, color: C.textMuted, padding: 0, fontFamily: 'inherit',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
