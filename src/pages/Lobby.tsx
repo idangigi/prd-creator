@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { C } from '../constants/designTokens';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,16 +26,49 @@ export default function Lobby() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
+  const [draftsPage, setDraftsPage] = useState(0);
+  const [hasMoreDrafts, setHasMoreDrafts] = useState(false);
+  const [loadingMoreDrafts, setLoadingMoreDrafts] = useState(false);
 
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
+
+  // Initial load
   useEffect(() => {
-    Promise.all([fetchUserPRDs(), fetchAllReleases()])
-      .then(([prdsData, releasesData]) => {
-        setPrds(prdsData);
+    Promise.all([fetchUserPRDs('', 0), fetchAllReleases('')])
+      .then(([prdsResult, releasesData]) => {
+        setPrds(prdsResult.data);
+        setHasMoreDrafts(prdsResult.hasMore);
         setReleases(releasesData);
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  // Debounced re-fetch when filter changes
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setLoading(true);
+      setDraftsPage(0);
+      Promise.all([fetchUserPRDs(filterText, 0), fetchAllReleases(filterText)])
+        .then(([prdsResult, releasesData]) => {
+          setPrds(prdsResult.data);
+          setHasMoreDrafts(prdsResult.hasMore);
+          setReleases(releasesData);
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false));
+    }, 300);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterText]);
 
   const handleNew = async () => {
     setCreating(true);
@@ -68,6 +101,21 @@ export default function Lobby() {
     }
   };
 
+  const handleLoadMoreDrafts = async () => {
+    const nextPage = draftsPage + 1;
+    setLoadingMoreDrafts(true);
+    try {
+      const result = await fetchUserPRDs(filterText, nextPage);
+      setPrds(prev => [...prev, ...result.data]);
+      setHasMoreDrafts(result.hasMore);
+      setDraftsPage(nextPage);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingMoreDrafts(false);
+    }
+  };
+
   // Group releases by prd_id, keep only the latest version per series
   const latestReleases = Object.values(
     releases.reduce<Record<string, ReleaseRecord>>((acc, r) => {
@@ -78,9 +126,9 @@ export default function Lobby() {
     }, {})
   ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const q = filterText.toLowerCase();
-  const filteredPrds = prds.filter(p => !q || (p.feature_name || '').toLowerCase().includes(q));
-  const filteredReleases = latestReleases.filter(r => !q || (r.feature_name || '').toLowerCase().includes(q));
+  // Filtering is done server-side; these aliases keep the JSX unchanged
+  const filteredPrds = prds;
+  const filteredReleases = latestReleases;
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
@@ -190,7 +238,7 @@ export default function Lobby() {
                 <span style={{ fontSize: 13, color: C.textFaint }}>{filteredPrds.length}</span>
               </div>
               {filteredPrds.length === 0 ? (
-                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{prds.length === 0 ? 'No drafts yet — create your first one.' : 'No drafts match your filter.'}</p>
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{filterText ? 'No drafts match your filter.' : 'No drafts yet — create your first one.'}</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
                   {filteredPrds.map(prd => (
@@ -236,6 +284,25 @@ export default function Lobby() {
                   ))}
                 </div>
               )}
+              {hasMoreDrafts && (
+                <div style={{ marginTop: 16, textAlign: 'center' }}>
+                  <button
+                    onClick={handleLoadMoreDrafts}
+                    disabled={loadingMoreDrafts}
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 6,
+                      padding: '6px 18px',
+                      fontSize: 12,
+                      color: C.textSubtle,
+                      cursor: loadingMoreDrafts ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {loadingMoreDrafts ? 'Loading…' : 'Load more'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Released section */}
@@ -245,7 +312,7 @@ export default function Lobby() {
                 <span style={{ fontSize: 13, color: C.textFaint }}>{filteredReleases.length}</span>
               </div>
               {filteredReleases.length === 0 ? (
-                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{releases.length === 0 ? 'No releases yet — open a draft and click Release.' : 'No releases match your filter.'}</p>
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{filterText ? 'No releases match your filter.' : 'No releases yet — open a draft and click Release.'}</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
                   {filteredReleases.map(r => {
