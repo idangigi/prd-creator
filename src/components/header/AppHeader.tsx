@@ -161,23 +161,6 @@ export function AppHeader({
           >
             {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving…' : 'Save'}
           </button>
-          {!mob && (
-            <button
-              onClick={signOut}
-              title={user?.email}
-              style={{
-                background: 'transparent',
-                border: `1px solid ${C.border}`,
-                borderRadius: 5,
-                padding: '4px 10px',
-                fontSize: 12,
-                color: C.textSubtle,
-                cursor: 'pointer',
-              }}
-            >
-              Sign out
-            </button>
-          )}
         </div>
       </div>
 
