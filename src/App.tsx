@@ -42,6 +42,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [latestVersion, setLatestVersion] = useState<number | undefined>(undefined);
+  const [forkedFromPrdId, setForkedFromPrdId] = useState<string | null>(null);
 
   const sections = getSections(lang);
   const ui = UI[lang];
@@ -57,17 +58,19 @@ export default function App() {
     fetchPRD(prdId)
       .then(record => {
         prd.setData(record.data);
+        setForkedFromPrdId(record.forked_from_prd_id);
         setLoading(false);
+        const seriesId = record.forked_from_prd_id ?? prdId;
+        fetchPRDReleases(seriesId)
+          .then(releases => {
+            if (releases.length > 0) setLatestVersion(releases[0].version_number);
+          })
+          .catch(() => {});
       })
       .catch(e => {
         setLoadError(e.message);
         setLoading(false);
       });
-    fetchPRDReleases(prdId)
-      .then(releases => {
-        if (releases.length > 0) setLatestVersion(releases[0].version_number);
-      })
-      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prdId]);
 
@@ -165,12 +168,11 @@ export default function App() {
 
   const handleCreateRelease = async (releaseNotes: string) => {
     if (!prdId) return;
-    // Save latest draft first
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     await doSave(prd.data);
-    const release = await createRelease(prdId, prd.data, releaseNotes);
-    setLatestVersion(release.version_number);
-    setShowReleaseModal(false);
+    await createRelease(prdId, forkedFromPrdId, prd.data, releaseNotes);
+    // Draft is now deleted — return to lobby
+    navigate('/');
   };
 
   const goToPrev = () => {

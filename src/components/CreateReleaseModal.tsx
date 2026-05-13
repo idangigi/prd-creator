@@ -65,6 +65,9 @@ export function CreateReleaseModal({ featureName, nextVersion, onConfirm, onClos
           <p style={{ margin: '6px 0 0', fontSize: 13, color: C.textSubtle }}>
             This will publish <strong>v{nextVersion}</strong> and make it visible to all team members.
           </p>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: C.textFaint }}>
+            The draft will be deleted — you can always fork this release to make further changes.
+          </p>
         </div>
 
         <div style={{ marginBottom: 20 }}>
