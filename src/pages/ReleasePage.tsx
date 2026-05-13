@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { C } from '../constants/designTokens';
-import { fetchRelease } from '../services/releaseService';
+import { fetchRelease, fetchPRDReleases } from '../services/releaseService';
 import { createPRD } from '../services/prdService';
 import type { ReleaseRecord } from '../services/releaseService';
 import type { PRDData, Story, EdgeCase, ScopeItem } from '../types/prd';
@@ -159,14 +159,20 @@ export default function ReleasePage() {
   const navigate = useNavigate();
 
   const [release, setRelease] = useState<ReleaseRecord | null>(null);
+  const [seriesVersions, setSeriesVersions] = useState<ReleaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forking, setForking] = useState(false);
 
   useEffect(() => {
     if (!id) { navigate('/'); return; }
+    setLoading(true);
     fetchRelease(id)
-      .then(setRelease)
+      .then(r => {
+        setRelease(r);
+        return fetchPRDReleases(r.prd_id);
+      })
+      .then(setSeriesVersions)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [id, navigate]);
@@ -251,17 +257,46 @@ export default function ReleasePage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#fff',
-              background: C.accent,
-              borderRadius: 4,
-              padding: '3px 8px',
-              letterSpacing: '0.04em',
-            }}>
-              v{release.version_number}
-            </div>
+            {seriesVersions.length > 1 ? (
+              <select
+                value={release.id}
+                onChange={e => navigate(`/release/${e.target.value}`)}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: C.accent,
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '3px 24px 3px 8px',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ffffff'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 7px center',
+                  backgroundSize: '8px',
+                }}
+              >
+                {seriesVersions.map(v => (
+                  <option key={v.id} value={v.id} style={{ background: '#0A0A0A', color: '#fff' }}>
+                    v{v.version_number}{v.version_number === seriesVersions[0].version_number ? ' (latest)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#fff',
+                background: C.accent,
+                borderRadius: 4,
+                padding: '3px 8px',
+                letterSpacing: '0.04em',
+              }}>
+                v{release.version_number}
+              </div>
+            )}
             <button
               onClick={handleFork}
               disabled={forking}
