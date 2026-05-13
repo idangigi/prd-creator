@@ -4,6 +4,7 @@ import { LanguageToggle } from './LanguageToggle';
 import { ExportMenu } from './ExportMenu';
 import { ProgressBar } from './ProgressBar';
 import { C } from '../../constants/designTokens';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Translation } from '../../constants/translations';
 import type { ExportFormat, Lang } from '../../types/prd';
 
@@ -40,6 +41,8 @@ export function AppHeader({
   progress,
   isRtl,
 }: AppHeaderProps) {
+  const { signOut, user } = useAuth();
+
   return (
     <header style={{
       background: 'rgba(250,250,250,0.85)',
@@ -118,6 +121,21 @@ export function AppHeader({
             exportDone={exportDone}
             onExport={onExport}
           />
+          <button
+            onClick={signOut}
+            title={user?.email}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${C.border}`,
+              borderRadius: 5,
+              padding: '4px 10px',
+              fontSize: 12,
+              color: C.textSubtle,
+              cursor: 'pointer',
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
 
