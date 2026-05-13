@@ -25,6 +25,7 @@ export default function Lobby() {
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     Promise.all([fetchUserPRDs(), fetchAllReleases()])
@@ -66,6 +67,20 @@ export default function Lobby() {
       setDeletingId(null);
     }
   };
+
+  // Group releases by prd_id, keep only the latest version per series
+  const latestReleases = Object.values(
+    releases.reduce<Record<string, ReleaseRecord>>((acc, r) => {
+      if (!acc[r.prd_id] || r.version_number > acc[r.prd_id].version_number) {
+        acc[r.prd_id] = r;
+      }
+      return acc;
+    }, {})
+  ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const q = filterText.toLowerCase();
+  const filteredPrds = prds.filter(p => !q || (p.feature_name || '').toLowerCase().includes(q));
+  const filteredReleases = latestReleases.filter(r => !q || (r.feature_name || '').toLowerCase().includes(q));
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
@@ -126,6 +141,30 @@ export default function Lobby() {
 
       {/* Main */}
       <main style={{ maxWidth: 1180, margin: '0 auto', padding: '40px 24px' }}>
+        {/* Filter input */}
+        <div style={{ marginBottom: 32 }}>
+          <input
+            type="text"
+            placeholder="Filter by name…"
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              padding: '8px 12px',
+              fontSize: 13,
+              border: `1px solid ${C.border}`,
+              borderRadius: 7,
+              background: C.surface,
+              color: C.text,
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = C.borderStrong)}
+            onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+          />
+        </div>
+
         {error && (
           <div style={{
             background: '#FEF2F2',
@@ -148,13 +187,13 @@ export default function Lobby() {
             <div style={{ marginBottom: 48 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>Drafts</h2>
-                <span style={{ fontSize: 13, color: C.textFaint }}>{prds.length}</span>
+                <span style={{ fontSize: 13, color: C.textFaint }}>{filteredPrds.length}</span>
               </div>
-              {prds.length === 0 ? (
-                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>No drafts yet — create your first one.</p>
+              {filteredPrds.length === 0 ? (
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{prds.length === 0 ? 'No drafts yet — create your first one.' : 'No drafts match your filter.'}</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                  {prds.map(prd => (
+                  {filteredPrds.map(prd => (
                     <div
                       key={prd.id}
                       onClick={() => navigate(`/prd/${prd.id}`)}
@@ -203,60 +242,70 @@ export default function Lobby() {
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>Released</h2>
-                <span style={{ fontSize: 13, color: C.textFaint }}>{releases.length}</span>
+                <span style={{ fontSize: 13, color: C.textFaint }}>{filteredReleases.length}</span>
               </div>
-              {releases.length === 0 ? (
-                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>No releases yet — open a draft and click Release.</p>
+              {filteredReleases.length === 0 ? (
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>{releases.length === 0 ? 'No releases yet — open a draft and click Release.' : 'No releases match your filter.'}</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                  {releases.map(r => (
-                    <div
-                      key={r.id}
-                      onClick={() => navigate(`/release/${r.id}`)}
-                      style={{
-                        background: C.surface,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: 10,
-                        padding: '18px 20px 14px',
-                        cursor: 'pointer',
-                        transition: 'border-color 0.15s, box-shadow 0.15s',
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLDivElement).style.borderColor = C.borderStrong;
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLDivElement).style.borderColor = C.border;
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                          Release
+                  {filteredReleases.map(r => {
+                    const seriesVersionCount = releases.filter(rel => rel.prd_id === r.prd_id).length;
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={() => navigate(`/release/${r.id}`)}
+                        style={{
+                          background: C.surface,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: 10,
+                          padding: '18px 20px 14px',
+                          cursor: 'pointer',
+                          transition: 'border-color 0.15s, box-shadow 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLDivElement).style.borderColor = C.borderStrong;
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLDivElement).style.borderColor = C.border;
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                              Release
+                            </div>
+                            {seriesVersionCount > 1 && (
+                              <div style={{ fontSize: 10, color: C.textFaint }}>
+                                · {seriesVersionCount} versions
+                              </div>
+                            )}
+                          </div>
+                          <div style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: '#fff',
+                            background: C.accent,
+                            borderRadius: 3,
+                            padding: '2px 6px',
+                            letterSpacing: '0.04em',
+                          }}>
+                            v{r.version_number}
+                          </div>
                         </div>
-                        <div style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: '#fff',
-                          background: C.accent,
-                          borderRadius: 3,
-                          padding: '2px 6px',
-                          letterSpacing: '0.04em',
-                        }}>
-                          v{r.version_number}
+                        <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.feature_name || 'Untitled PRD'}
                         </div>
+                        {r.release_notes && (
+                          <div style={{ fontSize: 12, color: C.textSubtle, marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {r.release_notes}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 11, color: C.textFaint }}>{formatDate(r.created_at)}</div>
                       </div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.feature_name || 'Untitled PRD'}
-                      </div>
-                      {r.release_notes && (
-                        <div style={{ fontSize: 12, color: C.textSubtle, marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                          {r.release_notes}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 11, color: C.textFaint }}>{formatDate(r.created_at)}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
