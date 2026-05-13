@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { C } from './constants/designTokens';
 import { UI } from './constants/translations';
 import { getSections } from './config/sections';
@@ -6,9 +7,11 @@ import { useResponsive } from './hooks/useResponsive';
 import { usePRDData } from './hooks/usePRDData';
 import { downloadDocx } from './services/exportDocx';
 import { downloadTxt } from './services/exportTxt';
+import { fetchPRD, updatePRD } from './services/prdService';
 import { findFirstErrorSection, sectionHasErrors, validate } from './utils/validation';
 import type { ExportFormat, Lang, SectionDef } from './types/prd';
 import { AppHeader } from './components/header/AppHeader';
+import type { SaveStatus } from './components/header/AppHeader';
 import { DesktopSidebarNav } from './components/navigation/DesktopSidebarNav';
 import { MobileDrawerNav } from './components/navigation/MobileDrawerNav';
 import { MobilePillNav } from './components/navigation/MobilePillNav';
@@ -20,6 +23,9 @@ import { UserStoriesSection } from './components/sections/UserStoriesSection';
 import { ReferenceFilesSection } from './components/sections/ReferenceFilesSection';
 
 export default function App() {
+  const { id: prdId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
   const prd = usePRDData();
   const { isMobile } = useResponsive();
 
@@ -29,15 +35,92 @@ export default function App() {
   const [exportDone, setExportDone] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [lang, setLang] = useState<Lang>('en');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
   const sections = getSections(lang);
   const ui = UI[lang];
   const isRtl = lang === 'he';
   const mob = isMobile;
 
+  // Load PRD data from Supabase on mount
+  useEffect(() => {
+    if (!prdId) {
+      navigate('/', { replace: true });
+      return;
+    }
+    fetchPRD(prdId)
+      .then(record => {
+        prd.setData(record.data);
+        setLoading(false);
+      })
+      .catch(e => {
+        setLoadError(e.message);
+        setLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prdId]);
+
+  // Save helper — used by both auto-save and the manual Save button
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
+
+  const doSave = async (data: typeof prd.data) => {
+    if (!prdId) return;
+    setSaveStatus('saving');
+    try {
+      await updatePRD(prdId, data);
+      setSaveStatus('saved');
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaveStatus('saved'), 3000);
+    } catch (e) {
+      console.error(e);
+      setSaveStatus('unsaved');
+    }
+  };
+
+  // Auto-save with 1.5s debounce on every data change after initial load
+  useEffect(() => {
+    if (loading || !prdId) return;
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setSaveStatus('unsaved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      doSave(prd.data);
+    }, 1500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prd.data]);
+
   useEffect(() => {
     if (isMobile) setMenuOpen(false);
   }, [activeSection, isMobile]);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textSubtle, fontSize: 14 }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: C.text }}>
+        <p style={{ color: C.danger, fontSize: 14 }}>Failed to load PRD: {loadError}</p>
+        <button onClick={() => navigate('/')} style={{ fontSize: 13, color: C.textSubtle, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
+          ← Back to lobby
+        </button>
+      </div>
+    );
+  }
 
   const currentSection = sections.find(s => s.id === activeSection)!;
   const currentIndex = sections.findIndex(s => s.id === activeSection);
@@ -98,6 +181,12 @@ export default function App() {
         onExport={handleExport}
         progress={progress}
         isRtl={isRtl}
+        onBackToLobby={() => navigate('/')}
+        saveStatus={saveStatus}
+        onSave={() => {
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          doSave(prd.data);
+        }}
       />
 
       {mob && menuOpen && (

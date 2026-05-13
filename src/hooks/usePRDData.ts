@@ -6,6 +6,7 @@ import { initData, newAC, newStory } from '../utils/initData';
 
 export interface PRDDataController {
   data: PRDData;
+  setData: (data: PRDData) => void;
   errors: ErrorMap;
   setErrors: (errors: ErrorMap) => void;
   clearError: (key: string) => void;
@@ -161,6 +162,7 @@ export function usePRDData(): PRDDataController {
 
   return {
     data,
+    setData,
     errors,
     setErrors,
     clearError,
