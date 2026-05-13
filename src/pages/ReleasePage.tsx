@@ -175,7 +175,8 @@ export default function ReleasePage() {
     if (!release) return;
     setForking(true);
     try {
-      const record = await createPRD(release.snapshot);
+      // Pass the series ID so a release from this fork increments the same version lineage
+      const record = await createPRD(release.snapshot, release.prd_id);
       navigate(`/prd/${record.id}`);
     } catch (e) {
       alert('Failed to fork: ' + (e as Error).message);

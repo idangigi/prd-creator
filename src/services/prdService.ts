@@ -6,6 +6,7 @@ export interface PRDRecord {
   user_id: string;
   feature_name: string;
   data: PRDData;
+  forked_from_prd_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,7 +30,7 @@ export async function fetchPRD(id: string): Promise<PRDRecord> {
   return data as PRDRecord;
 }
 
-export async function createPRD(prdData: PRDData): Promise<PRDRecord> {
+export async function createPRD(prdData: PRDData, forkedFromPrdId?: string): Promise<PRDRecord> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
   const { data, error } = await supabase
@@ -38,6 +39,7 @@ export async function createPRD(prdData: PRDData): Promise<PRDRecord> {
       user_id: user.id,
       feature_name: prdData.featureName || 'Untitled PRD',
       data: prdData,
+      forked_from_prd_id: forkedFromPrdId ?? null,
     })
     .select()
     .single();

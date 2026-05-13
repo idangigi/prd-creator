@@ -13,25 +13,28 @@ export interface ReleaseRecord {
 }
 
 export async function createRelease(
-  prdId: string,
+  draftId: string,
+  forkedFromPrdId: string | null,
   data: PRDData,
   releaseNotes: string,
 ): Promise<ReleaseRecord> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Determine next version number
+  // Use the original series ID — forks stay in the same release lineage
+  const seriesId = forkedFromPrdId ?? draftId;
+
   const { count } = await supabase
     .from('releases')
     .select('*', { count: 'exact', head: true })
-    .eq('prd_id', prdId);
+    .eq('prd_id', seriesId);
 
   const versionNumber = (count ?? 0) + 1;
 
   const { data: record, error } = await supabase
     .from('releases')
     .insert({
-      prd_id: prdId,
+      prd_id: seriesId,
       version_number: versionNumber,
       release_notes: releaseNotes || null,
       snapshot: data,
@@ -42,6 +45,10 @@ export async function createRelease(
     .single();
 
   if (error) throw error;
+
+  // Draft is no longer needed — delete it after a successful release
+  await supabase.from('prds').delete().eq('id', draftId);
+
   return record as ReleaseRecord;
 }
 
