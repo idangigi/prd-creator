@@ -16,3 +16,4 @@ input::placeholder, textarea::placeholder { color: #737373; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #D4D4D4; }
+dialog::backdrop { background: rgba(0,0,0,0.35); backdrop-filter: blur(2px); }

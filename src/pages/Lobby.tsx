@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { createPRD, deletePRD, fetchUserPRDs } from '../services/prdService';
 import type { PRDRecord } from '../services/prdService';
 import { initData } from '../utils/initData';
+import { CriticalPopup } from '../components/CriticalPopup';
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -20,6 +21,7 @@ export default function Lobby() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserPRDs()
@@ -39,9 +41,15 @@ export default function Lobby() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('Delete this PRD? This cannot be undone.')) return;
+    setConfirmDeleteId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+    if (!id) return;
     setDeletingId(id);
     try {
       await deletePRD(id);
@@ -189,7 +197,7 @@ export default function Lobby() {
                     Updated {formatDate(prd.updated_at)}
                   </div>
                   <button
-                    onClick={e => handleDelete(e, prd.id)}
+                    onClick={e => handleDeleteClick(e, prd.id)}
                     disabled={deletingId === prd.id}
                     style={{
                       background: 'transparent',
@@ -211,6 +219,14 @@ export default function Lobby() {
           </div>
         )}
       </main>
+
+      <CriticalPopup
+        open={confirmDeleteId !== null}
+        title="Delete this PRD?"
+        description="This action cannot be undone. The document will be permanently removed."
+        onConfirm={handleDeleteConfirm}
+        onDecline={() => setConfirmDeleteId(null)}
+      />
 
       {/* Floating + button */}
       <button
