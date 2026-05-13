@@ -4,6 +4,8 @@ import { C } from '../constants/designTokens';
 import { useAuth } from '../contexts/AuthContext';
 import { createPRD, deletePRD, fetchUserPRDs } from '../services/prdService';
 import type { PRDRecord } from '../services/prdService';
+import { fetchAllReleases } from '../services/releaseService';
+import type { ReleaseRecord } from '../services/releaseService';
 import { initData } from '../utils/initData';
 import { CriticalPopup } from '../components/CriticalPopup';
 
@@ -17,6 +19,7 @@ export default function Lobby() {
   const navigate = useNavigate();
 
   const [prds, setPrds] = useState<Pick<PRDRecord, 'id' | 'feature_name' | 'created_at' | 'updated_at'>[]>([]);
+  const [releases, setReleases] = useState<ReleaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -24,8 +27,11 @@ export default function Lobby() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUserPRDs()
-      .then(setPrds)
+    Promise.all([fetchUserPRDs(), fetchAllReleases()])
+      .then(([prdsData, releasesData]) => {
+        setPrds(prdsData);
+        setReleases(releasesData);
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -120,13 +126,6 @@ export default function Lobby() {
 
       {/* Main */}
       <main style={{ maxWidth: 1180, margin: '0 auto', padding: '40px 24px' }}>
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>My PRDs</h1>
-          <p style={{ fontSize: 14, color: C.textSubtle, marginTop: 6, marginBottom: 0 }}>
-            {prds.length === 0 && !loading ? 'No PRDs yet — create your first one.' : `${prds.length} document${prds.length !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-
         {error && (
           <div style={{
             background: '#FEF2F2',
@@ -144,79 +143,124 @@ export default function Lobby() {
         {loading ? (
           <div style={{ color: C.textSubtle, fontSize: 14 }}>Loading…</div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 16,
-          }}>
-            {prds.map(prd => (
-              <div
-                key={prd.id}
-                onClick={() => navigate(`/prd/${prd.id}`)}
-                style={{
-                  background: C.surface,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 10,
-                  padding: '20px 20px 16px',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
-                  position: 'relative',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = C.borderStrong;
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = C.border;
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                }}
-              >
-                <div style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: C.textFaint,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  marginBottom: 8,
-                }}>
-                  PRD
-                </div>
-                <div style={{
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: C.text,
-                  marginBottom: 12,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {prd.feature_name || 'Untitled PRD'}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 11, color: C.textFaint }}>
-                    Updated {formatDate(prd.updated_at)}
-                  </div>
-                  <button
-                    onClick={e => handleDeleteClick(e, prd.id)}
-                    disabled={deletingId === prd.id}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      padding: '2px 6px',
-                      fontSize: 11,
-                      color: C.textFaint,
-                      cursor: 'pointer',
-                      borderRadius: 4,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = C.danger)}
-                    onMouseLeave={e => (e.currentTarget.style.color = C.textFaint)}
-                  >
-                    {deletingId === prd.id ? '…' : 'Delete'}
-                  </button>
-                </div>
+          <>
+            {/* Drafts section */}
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>Drafts</h2>
+                <span style={{ fontSize: 13, color: C.textFaint }}>{prds.length}</span>
               </div>
-            ))}
-          </div>
+              {prds.length === 0 ? (
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>No drafts yet — create your first one.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {prds.map(prd => (
+                    <div
+                      key={prd.id}
+                      onClick={() => navigate(`/prd/${prd.id}`)}
+                      style={{
+                        background: C.surface,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 10,
+                        padding: '18px 20px 14px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s, box-shadow 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = C.borderStrong;
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = C.border;
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                        Draft
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {prd.feature_name || 'Untitled PRD'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: 11, color: C.textFaint }}>Updated {formatDate(prd.updated_at)}</div>
+                        <button
+                          onClick={e => handleDeleteClick(e, prd.id)}
+                          disabled={deletingId === prd.id}
+                          style={{ background: 'transparent', border: 'none', padding: '2px 6px', fontSize: 11, color: C.textFaint, cursor: 'pointer', borderRadius: 4 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = C.danger)}
+                          onMouseLeave={e => (e.currentTarget.style.color = C.textFaint)}
+                        >
+                          {deletingId === prd.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Released section */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>Released</h2>
+                <span style={{ fontSize: 13, color: C.textFaint }}>{releases.length}</span>
+              </div>
+              {releases.length === 0 ? (
+                <p style={{ fontSize: 13, color: C.textFaint, margin: 0 }}>No releases yet — open a draft and click Release.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {releases.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => navigate(`/release/${r.id}`)}
+                      style={{
+                        background: C.surface,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 10,
+                        padding: '18px 20px 14px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s, box-shadow 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = C.borderStrong;
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = C.border;
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                          Release
+                        </div>
+                        <div style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: '#fff',
+                          background: C.accent,
+                          borderRadius: 3,
+                          padding: '2px 6px',
+                          letterSpacing: '0.04em',
+                        }}>
+                          v{r.version_number}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.feature_name || 'Untitled PRD'}
+                      </div>
+                      {r.release_notes && (
+                        <div style={{ fontSize: 12, color: C.textSubtle, marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {r.release_notes}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: C.textFaint }}>{formatDate(r.created_at)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
 
