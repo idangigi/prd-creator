@@ -23,6 +23,7 @@ interface AppHeaderProps {
   onExport: (format: ExportFormat) => void;
   progress: number;
   isRtl: boolean;
+  onBackToLobby: () => void;
 }
 
 export function AppHeader({
@@ -40,6 +41,7 @@ export function AppHeader({
   onExport,
   progress,
   isRtl,
+  onBackToLobby,
 }: AppHeaderProps) {
   const { signOut, user } = useAuth();
 
@@ -63,6 +65,24 @@ export function AppHeader({
         gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={onBackToLobby}
+            title="Back to lobby"
+            style={{
+              background: 'transparent',
+              border: `1px solid ${C.border}`,
+              borderRadius: 5,
+              padding: '4px 8px',
+              fontSize: 12,
+              color: C.textSubtle,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            ←
+          </button>
           {mob && (
             <button
               onClick={onMenuToggle}
