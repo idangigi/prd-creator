@@ -31,7 +31,7 @@ export default function Lobby() {
   const handleNew = async () => {
     setCreating(true);
     try {
-      const record = await createPRD(initData);
+      const record = await createPRD(initData());
       navigate(`/prd/${record.id}`);
     } catch (e) {
       setError((e as Error).message);
