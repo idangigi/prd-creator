@@ -1,0 +1,316 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { C } from '../constants/designTokens';
+import { fetchRelease } from '../services/releaseService';
+import { createPRD } from '../services/prdService';
+import type { ReleaseRecord } from '../services/releaseService';
+import type { PRDData, Story, EdgeCase, ScopeItem } from '../types/prd';
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 36 }}>
+      <div style={{
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color: C.textFaint,
+        marginBottom: 14,
+        paddingBottom: 8,
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: C.textSubtle, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, color: C.text, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{value}</div>
+    </div>
+  );
+}
+
+function StoryBlock({ story, index }: { story: Story; index: number }) {
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      padding: '16px 18px',
+      marginBottom: 12,
+      background: C.surface,
+    }}>
+      <div style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color: C.textFaint,
+        letterSpacing: '0.06em',
+        marginBottom: 10,
+      }}>
+        US-{String(index + 1).padStart(2, '0')}
+      </div>
+      <div style={{ fontSize: 13, color: C.text, marginBottom: 12, lineHeight: 1.6 }}>
+        As a <strong>{story.persona || '…'}</strong>, I want to <strong>{story.action || '…'}</strong> so that <strong>{story.benefit || '…'}</strong>.
+      </div>
+      {story.acs.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.textSubtle, marginBottom: 8 }}>Acceptance Criteria</div>
+          {story.acs.map((ac, ai) => (
+            <div key={ai} style={{
+              fontSize: 12,
+              color: C.textMuted,
+              marginBottom: 6,
+              paddingLeft: 12,
+              borderLeft: `2px solid ${C.border}`,
+              lineHeight: 1.6,
+            }}>
+              <span style={{ color: C.textFaint }}>Given</span> {ac.given} <span style={{ color: C.textFaint }}>when</span> {ac.when} <span style={{ color: C.textFaint }}>then</span> {ac.then}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EdgeCaseBlock({ ec, index }: { ec: EdgeCase; index: number }) {
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      padding: '14px 18px',
+      marginBottom: 10,
+      background: C.surface,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, letterSpacing: '0.06em', marginBottom: 8 }}>
+        EC-{String(index + 1).padStart(2, '0')}
+      </div>
+      <Field label="Scenario" value={ec.scenario} />
+      <Field label="Expected Behavior" value={ec.behavior} />
+      {ec.errorMsg && <Field label="Error Message" value={ec.errorMsg} />}
+    </div>
+  );
+}
+
+function PRDContent({ data }: { data: PRDData }) {
+  return (
+    <div>
+      <Section title="Feature Brief">
+        <Field label="Feature Name" value={data.featureName} />
+        <Field label="What" value={data.what} />
+        <Field label="Why" value={data.why} />
+        <Field label="Who" value={data.who} />
+      </Section>
+
+      {data.stories.length > 0 && (
+        <Section title="User Stories">
+          {data.stories.map((s, i) => <StoryBlock key={i} story={s} index={i} />)}
+        </Section>
+      )}
+
+      {data.edge.length > 0 && (
+        <Section title="Edge Cases">
+          {data.edge.map((ec, i) => <EdgeCaseBlock key={i} ec={ec} index={i} />)}
+        </Section>
+      )}
+
+      {(data.api || data.db || data.integrations) && (
+        <Section title="Technical Notes">
+          <Field label="API / Endpoints" value={data.api} />
+          <Field label="DB / Schema" value={data.db} />
+          <Field label="Integrations" value={data.integrations} />
+        </Section>
+      )}
+
+      {data.scope.some((s: ScopeItem) => s.item) && (
+        <Section title="Out of Scope">
+          {data.scope.filter((s: ScopeItem) => s.item).map((s: ScopeItem, i: number) => (
+            <div key={i} style={{ fontSize: 14, color: C.text, marginBottom: 6, display: 'flex', gap: 8 }}>
+              <span style={{ color: C.textFaint }}>—</span>
+              <span>{s.item}</span>
+            </div>
+          ))}
+        </Section>
+      )}
+
+      {(data.figma || data.screens) && (
+        <Section title="Design Links">
+          <Field label="Figma URL" value={data.figma} />
+          <Field label="Screens" value={data.screens} />
+        </Section>
+      )}
+    </div>
+  );
+}
+
+export default function ReleasePage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [release, setRelease] = useState<ReleaseRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [forking, setForking] = useState(false);
+
+  useEffect(() => {
+    if (!id) { navigate('/'); return; }
+    fetchRelease(id)
+      .then(setRelease)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id, navigate]);
+
+  const handleFork = async () => {
+    if (!release) return;
+    setForking(true);
+    try {
+      const record = await createPRD(release.snapshot);
+      navigate(`/prd/${record.id}`);
+    } catch (e) {
+      alert('Failed to fork: ' + (e as Error).message);
+      setForking(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textSubtle, fontSize: 14 }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (error || !release) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+        <p style={{ color: C.danger, fontSize: 14 }}>{error || 'Release not found.'}</p>
+        <button onClick={() => navigate('/')} style={{ fontSize: 13, color: C.textSubtle, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
+          ← Back to lobby
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
+      {/* Header */}
+      <header style={{
+        background: 'rgba(250,250,250,0.85)',
+        backdropFilter: 'saturate(180%) blur(8px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(8px)',
+        borderBottom: `1px solid ${C.border}`,
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        <div style={{
+          maxWidth: 860,
+          margin: '0 auto',
+          padding: '12px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${C.border}`,
+                borderRadius: 5,
+                padding: '4px 8px',
+                fontSize: 12,
+                color: C.textSubtle,
+                cursor: 'pointer',
+              }}
+            >
+              ←
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 22, height: 22, background: C.text, color: '#fff',
+                borderRadius: 4, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontWeight: 700, fontSize: 12,
+              }}>F</div>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>Fattal</span>
+              <span style={{ fontSize: 13, color: C.textFaint }}>/ PRD Creator</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#fff',
+              background: C.accent,
+              borderRadius: 4,
+              padding: '3px 8px',
+              letterSpacing: '0.04em',
+            }}>
+              v{release.version_number}
+            </div>
+            <button
+              onClick={handleFork}
+              disabled={forking}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${C.border}`,
+                borderRadius: 5,
+                padding: '5px 12px',
+                fontSize: 12,
+                fontWeight: 500,
+                color: C.textMuted,
+                cursor: forking ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {forking ? 'Forking…' : 'Fork to Draft'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main style={{ maxWidth: 860, margin: '0 auto', padding: '40px 24px 80px' }}>
+        {/* Release meta */}
+        <div style={{ marginBottom: 36 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.03em' }}>
+            {release.feature_name || 'Untitled PRD'}
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: C.textFaint }}>
+              Released {formatDate(release.created_at)}
+            </span>
+          </div>
+          {release.release_notes && (
+            <div style={{
+              marginTop: 16,
+              padding: '14px 16px',
+              background: C.hover,
+              borderRadius: 8,
+              border: `1px solid ${C.border}`,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.textSubtle, marginBottom: 6 }}>Release Notes</div>
+              <div style={{ fontSize: 13, color: C.text, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                {release.release_notes}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <PRDContent data={release.snapshot} />
+      </main>
+    </div>
+  );
+}

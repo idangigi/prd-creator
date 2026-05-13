@@ -8,6 +8,8 @@ import { usePRDData } from './hooks/usePRDData';
 import { downloadDocx } from './services/exportDocx';
 import { downloadTxt } from './services/exportTxt';
 import { fetchPRD, updatePRD } from './services/prdService';
+import { createRelease, fetchPRDReleases } from './services/releaseService';
+import { CreateReleaseModal } from './components/CreateReleaseModal';
 import { findFirstErrorSection, sectionHasErrors, validate } from './utils/validation';
 import type { ExportFormat, Lang, SectionDef } from './types/prd';
 import { AppHeader } from './components/header/AppHeader';
@@ -38,6 +40,8 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [latestVersion, setLatestVersion] = useState<number | undefined>(undefined);
 
   const sections = getSections(lang);
   const ui = UI[lang];
@@ -59,6 +63,11 @@ export default function App() {
         setLoadError(e.message);
         setLoading(false);
       });
+    fetchPRDReleases(prdId)
+      .then(releases => {
+        if (releases.length > 0) setLatestVersion(releases[0].version_number);
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prdId]);
 
@@ -154,6 +163,16 @@ export default function App() {
     setExporting(false);
   };
 
+  const handleCreateRelease = async (releaseNotes: string) => {
+    if (!prdId) return;
+    // Save latest draft first
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    await doSave(prd.data);
+    const release = await createRelease(prdId, prd.data, releaseNotes);
+    setLatestVersion(release.version_number);
+    setShowReleaseModal(false);
+  };
+
   const goToPrev = () => {
     if (currentIndex > 0) setActiveSection(sections[currentIndex - 1].id);
   };
@@ -187,6 +206,8 @@ export default function App() {
           if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
           doSave(prd.data);
         }}
+        onCreateRelease={() => setShowReleaseModal(true)}
+        latestVersion={latestVersion}
       />
 
       {mob && menuOpen && (
@@ -316,6 +337,15 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {showReleaseModal && (
+        <CreateReleaseModal
+          featureName={prd.data.featureName}
+          nextVersion={(latestVersion ?? 0) + 1}
+          onConfirm={handleCreateRelease}
+          onClose={() => setShowReleaseModal(false)}
+        />
+      )}
     </div>
   );
 }

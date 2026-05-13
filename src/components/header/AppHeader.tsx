@@ -27,6 +27,8 @@ interface AppHeaderProps {
   onBackToLobby: () => void;
   saveStatus: SaveStatus;
   onSave: () => void;
+  onCreateRelease: () => void;
+  latestVersion?: number;
 }
 
 export function AppHeader({
@@ -47,6 +49,8 @@ export function AppHeader({
   onBackToLobby,
   saveStatus,
   onSave,
+  onCreateRelease,
+  latestVersion,
 }: AppHeaderProps) {
   return (
     <header style={{
@@ -160,6 +164,24 @@ export function AppHeader({
             }}
           >
             {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            onClick={onCreateRelease}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${C.borderStrong}`,
+              borderRadius: 5,
+              padding: '4px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              color: C.text,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            {latestVersion ? `v${latestVersion} · Release` : 'Release'}
           </button>
         </div>
       </div>
