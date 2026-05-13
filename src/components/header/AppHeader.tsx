@@ -8,6 +8,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { Translation } from '../../constants/translations';
 import type { ExportFormat, Lang } from '../../types/prd';
 
+export type SaveStatus = 'saved' | 'saving' | 'unsaved';
+
 interface AppHeaderProps {
   ui: Translation;
   lang: Lang;
@@ -24,6 +26,8 @@ interface AppHeaderProps {
   progress: number;
   isRtl: boolean;
   onBackToLobby: () => void;
+  saveStatus: SaveStatus;
+  onSave: () => void;
 }
 
 export function AppHeader({
@@ -42,6 +46,8 @@ export function AppHeader({
   progress,
   isRtl,
   onBackToLobby,
+  saveStatus,
+  onSave,
 }: AppHeaderProps) {
   const { signOut, user } = useAuth();
 
@@ -142,20 +148,40 @@ export function AppHeader({
             onExport={onExport}
           />
           <button
-            onClick={signOut}
-            title={user?.email}
+            onClick={onSave}
+            disabled={saveStatus === 'saving' || saveStatus === 'saved'}
             style={{
-              background: 'transparent',
-              border: `1px solid ${C.border}`,
+              background: saveStatus === 'saved' ? '#F0FDF4' : saveStatus === 'saving' ? C.hover : C.accent,
+              border: saveStatus === 'saved' ? '1px solid #BBF7D0' : saveStatus === 'saving' ? `1px solid ${C.border}` : 'none',
               borderRadius: 5,
-              padding: '4px 10px',
+              padding: '4px 12px',
               fontSize: 12,
-              color: C.textSubtle,
-              cursor: 'pointer',
+              fontWeight: 500,
+              color: saveStatus === 'saved' ? '#15803D' : saveStatus === 'saving' ? C.textSubtle : C.accentText,
+              cursor: saveStatus === 'unsaved' ? 'pointer' : 'default',
+              transition: 'background 0.2s, color 0.2s',
+              minWidth: mob ? undefined : 72,
             }}
           >
-            Sign out
+            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving…' : 'Save'}
           </button>
+          {!mob && (
+            <button
+              onClick={signOut}
+              title={user?.email}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${C.border}`,
+                borderRadius: 5,
+                padding: '4px 10px',
+                fontSize: 12,
+                color: C.textSubtle,
+                cursor: 'pointer',
+              }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </div>
 

@@ -11,6 +11,7 @@ import { fetchPRD, updatePRD } from './services/prdService';
 import { findFirstErrorSection, sectionHasErrors, validate } from './utils/validation';
 import type { ExportFormat, Lang, SectionDef } from './types/prd';
 import { AppHeader } from './components/header/AppHeader';
+import type { SaveStatus } from './components/header/AppHeader';
 import { DesktopSidebarNav } from './components/navigation/DesktopSidebarNav';
 import { MobileDrawerNav } from './components/navigation/MobileDrawerNav';
 import { MobilePillNav } from './components/navigation/MobilePillNav';
@@ -36,6 +37,7 @@ export default function App() {
   const [lang, setLang] = useState<Lang>('en');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
   const sections = getSections(lang);
   const ui = UI[lang];
@@ -60,19 +62,36 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prdId]);
 
-  // Auto-save with debounce whenever data changes (after initial load)
+  // Save helper — used by both auto-save and the manual Save button
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
 
+  const doSave = async (data: typeof prd.data) => {
+    if (!prdId) return;
+    setSaveStatus('saving');
+    try {
+      await updatePRD(prdId, data);
+      setSaveStatus('saved');
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaveStatus('saved'), 3000);
+    } catch (e) {
+      console.error(e);
+      setSaveStatus('unsaved');
+    }
+  };
+
+  // Auto-save with 1.5s debounce on every data change after initial load
   useEffect(() => {
     if (loading || !prdId) return;
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+    setSaveStatus('unsaved');
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      updatePRD(prdId, prd.data).catch(console.error);
+      doSave(prd.data);
     }, 1500);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -163,6 +182,11 @@ export default function App() {
         progress={progress}
         isRtl={isRtl}
         onBackToLobby={() => navigate('/')}
+        saveStatus={saveStatus}
+        onSave={() => {
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          doSave(prd.data);
+        }}
       />
 
       {mob && menuOpen && (
