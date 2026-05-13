@@ -11,13 +11,23 @@ export interface PRDRecord {
   updated_at: string;
 }
 
-export async function fetchUserPRDs(): Promise<Pick<PRDRecord, 'id' | 'feature_name' | 'created_at' | 'updated_at'>[]> {
-  const { data, error } = await supabase
+export const DRAFTS_PAGE_SIZE = 20;
+
+export async function fetchUserPRDs(
+  search = '',
+  page = 0,
+): Promise<{ data: Pick<PRDRecord, 'id' | 'feature_name' | 'created_at' | 'updated_at'>[]; hasMore: boolean }> {
+  const from = page * DRAFTS_PAGE_SIZE;
+  const to = from + DRAFTS_PAGE_SIZE - 1;
+  let query = supabase
     .from('prds')
     .select('id, feature_name, created_at, updated_at')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .range(from, to);
+  if (search) query = query.ilike('feature_name', `%${search}%`);
+  const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return { data, hasMore: data.length === DRAFTS_PAGE_SIZE };
 }
 
 export async function fetchPRD(id: string): Promise<PRDRecord> {

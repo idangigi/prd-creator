@@ -52,11 +52,14 @@ export async function createRelease(
   return record as ReleaseRecord;
 }
 
-export async function fetchAllReleases(): Promise<ReleaseRecord[]> {
-  const { data, error } = await supabase
+export async function fetchAllReleases(search = ''): Promise<ReleaseRecord[]> {
+  let query = supabase
     .from('releases')
     .select('id, prd_id, version_number, release_notes, feature_name, created_by, created_at')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (search) query = query.ilike('feature_name', `%${search}%`);
+  const { data, error } = await query;
   if (error) throw error;
   return data as ReleaseRecord[];
 }
