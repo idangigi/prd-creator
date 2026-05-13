@@ -1,10 +1,9 @@
 import { MenuIcon } from '../icons/MenuIcon';
 import { XIcon } from '../icons/XIcon';
 import { LanguageToggle } from './LanguageToggle';
-import { ExportMenu } from './ExportMenu';
+import { UserMenu } from './UserMenu';
 import { ProgressBar } from './ProgressBar';
 import { C } from '../../constants/designTokens';
-import { useAuth } from '../../contexts/AuthContext';
 import type { Translation } from '../../constants/translations';
 import type { ExportFormat, Lang } from '../../types/prd';
 
@@ -49,8 +48,6 @@ export function AppHeader({
   saveStatus,
   onSave,
 }: AppHeaderProps) {
-  const { signOut, user } = useAuth();
-
   return (
     <header style={{
       background: 'rgba(250,250,250,0.85)',
@@ -140,9 +137,8 @@ export function AppHeader({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <LanguageToggle lang={lang} onChange={onLangChange} />
-          <ExportMenu
+          <UserMenu
             ui={ui}
-            mob={mob}
             exporting={exporting}
             exportDone={exportDone}
             onExport={onExport}
