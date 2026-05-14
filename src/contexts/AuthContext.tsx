@@ -8,6 +8,7 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -38,8 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const email = session?.user?.email;
+    if (!email) return { error: 'Not signed in' };
+    const { error: reAuthError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+    if (reAuthError) return { error: 'Current password is incorrect' };
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error ? error.message : null };
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signIn, signOut, changePassword }}>
       {children}
     </AuthContext.Provider>
   );
