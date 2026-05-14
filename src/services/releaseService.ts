@@ -9,6 +9,7 @@ export interface ReleaseRecord {
   snapshot: PRDData;
   feature_name: string;
   created_by: string;
+  author_email: string | null;
   created_at: string;
 }
 
@@ -40,6 +41,7 @@ export async function createRelease(
       snapshot: data,
       feature_name: data.featureName || 'Untitled PRD',
       created_by: user.id,
+      author_email: user.email ?? null,
     })
     .select()
     .single();

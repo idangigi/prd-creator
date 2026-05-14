@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { C } from '../constants/designTokens';
+import { useResponsive } from '../hooks/useResponsive';
 import { fetchRelease, fetchPRDReleases } from '../services/releaseService';
 import { createPRD } from '../services/prdService';
 import type { ReleaseRecord } from '../services/releaseService';
@@ -12,22 +13,45 @@ function formatDate(iso: string) {
   });
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, collapsible = false, defaultOpen = true }: {
+  title: string;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: 36 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: C.textFaint,
-        marginBottom: 14,
-        paddingBottom: 8,
-        borderBottom: `1px solid ${C.border}`,
-      }}>
-        {title}
+      <div
+        onClick={collapsible ? () => setOpen(o => !o) : undefined}
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: C.textFaint,
+          marginBottom: open || !collapsible ? 14 : 0,
+          paddingBottom: 8,
+          borderBottom: `1px solid ${C.border}`,
+          cursor: collapsible ? 'pointer' : undefined,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          userSelect: 'none',
+        }}
+      >
+        <span>{title}</span>
+        {collapsible && (
+          <span style={{
+            fontSize: 10,
+            color: C.textFaint,
+            transition: 'transform 0.2s',
+            display: 'inline-block',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}>▼</span>
+        )}
       </div>
-      {children}
+      {(!collapsible || open) && children}
     </div>
   );
 }
@@ -103,7 +127,7 @@ function EdgeCaseBlock({ ec, index }: { ec: EdgeCase; index: number }) {
   );
 }
 
-function PRDContent({ data }: { data: PRDData }) {
+function PRDContent({ data, isMobile }: { data: PRDData; isMobile: boolean }) {
   return (
     <div>
       <Section title="Feature Brief">
@@ -114,13 +138,13 @@ function PRDContent({ data }: { data: PRDData }) {
       </Section>
 
       {data.stories.length > 0 && (
-        <Section title="User Stories">
+        <Section title="User Stories" collapsible={isMobile} defaultOpen={!isMobile}>
           {data.stories.map((s, i) => <StoryBlock key={i} story={s} index={i} />)}
         </Section>
       )}
 
       {data.edge.length > 0 && (
-        <Section title="Edge Cases">
+        <Section title="Edge Cases" collapsible={isMobile} defaultOpen={!isMobile}>
           {data.edge.map((ec, i) => <EdgeCaseBlock key={i} ec={ec} index={i} />)}
         </Section>
       )}
@@ -157,6 +181,7 @@ function PRDContent({ data }: { data: PRDData }) {
 export default function ReleasePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isMobile } = useResponsive();
 
   const [release, setRelease] = useState<ReleaseRecord | null>(null);
   const [seriesVersions, setSeriesVersions] = useState<ReleaseRecord[]>([]);
@@ -328,6 +353,11 @@ export default function ReleasePage() {
             <span style={{ fontSize: 12, color: C.textFaint }}>
               Released {formatDate(release.created_at)}
             </span>
+            {release.author_email && (
+              <span style={{ fontSize: 12, color: C.textFaint }}>
+                · by {release.author_email}
+              </span>
+            )}
           </div>
           {release.release_notes && (
             <div style={{
@@ -345,7 +375,7 @@ export default function ReleasePage() {
           )}
         </div>
 
-        <PRDContent data={release.snapshot} />
+        <PRDContent data={release.snapshot} isMobile={isMobile} />
       </main>
     </div>
   );
