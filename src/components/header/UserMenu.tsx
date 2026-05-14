@@ -4,6 +4,7 @@ import { CheckIcon } from '../icons/CheckIcon';
 import { C } from '../../constants/designTokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { ChangePasswordModal } from '../ChangePasswordModal';
 import type { Translation } from '../../constants/translations';
 import type { ExportFormat } from '../../types/prd';
 
@@ -17,6 +18,7 @@ interface UserMenuProps {
 export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps) {
   const { signOut, user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useClickOutside(ref, () => setOpen(false));
@@ -29,6 +31,10 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
   ];
 
   return (
+    <>
+    {showChangePassword && (
+      <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+    )}
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(o => !o)}
@@ -110,6 +116,26 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
           <div style={{ borderTop: `1px solid ${C.borderSubtle}`, margin: '4px 0' }} />
 
           <button
+            onClick={() => { setOpen(false); setShowChangePassword(true); }}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 4,
+              textAlign: 'start',
+              cursor: 'pointer',
+              color: C.text,
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            Change password
+          </button>
+
+          <button
             onClick={() => { signOut(); setOpen(false); }}
             style={{
               width: '100%',
@@ -131,5 +157,6 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
         </div>
       )}
     </div>
+    </>
   );
 }
