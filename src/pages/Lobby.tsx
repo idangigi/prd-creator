@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { C } from '../constants/designTokens';
-import { useAuth } from '../contexts/AuthContext';
+import { UserMenu } from '../components/header/UserMenu';
 import { createPRD, deletePRD, fetchUserPRDs } from '../services/prdService';
 import type { PRDRecord } from '../services/prdService';
 import { fetchAllReleases } from '../services/releaseService';
@@ -15,7 +15,6 @@ function formatDate(iso: string) {
 }
 
 export default function Lobby() {
-  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [prds, setPrds] = useState<Pick<PRDRecord, 'id' | 'feature_name' | 'created_at' | 'updated_at'>[]>([]);
@@ -167,23 +166,7 @@ export default function Lobby() {
             <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>Fattal</span>
             <span style={{ fontSize: 13, color: C.textFaint }}>/ PRD Creator</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: C.textSubtle }}>{user?.email}</span>
-            <button
-              onClick={signOut}
-              style={{
-                background: 'transparent',
-                border: `1px solid ${C.border}`,
-                borderRadius: 5,
-                padding: '4px 10px',
-                fontSize: 12,
-                color: C.textSubtle,
-                cursor: 'pointer',
-              }}
-            >
-              Sign out
-            </button>
-          </div>
+          <UserMenu />
         </div>
       </header>
 
