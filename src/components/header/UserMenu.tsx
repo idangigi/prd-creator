@@ -9,13 +9,13 @@ import type { Translation } from '../../constants/translations';
 import type { ExportFormat } from '../../types/prd';
 
 interface UserMenuProps {
-  ui: Translation;
-  exporting: boolean;
-  exportDone: boolean;
-  onExport: (format: ExportFormat) => void;
+  ui?: Translation;
+  exporting?: boolean;
+  exportDone?: boolean;
+  onExport?: (format: ExportFormat) => void;
 }
 
-export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps) {
+export function UserMenu({ ui, exporting = false, exportDone = false, onExport }: UserMenuProps) {
   const { signOut, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -25,10 +25,10 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
 
   const initial = user?.email?.[0]?.toUpperCase() ?? '?';
 
-  const exportOptions: { fmt: ExportFormat; label: string; sub: string }[] = [
+  const exportOptions: { fmt: ExportFormat; label: string; sub: string }[] = ui && onExport ? [
     { fmt: 'docx', label: ui.exportDocx, sub: ui.microsoftWord },
     { fmt: 'txt', label: ui.exportTxt, sub: ui.plainText },
-  ];
+  ] : [];
 
   return (
     <>
@@ -86,7 +86,7 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
             <button
               key={it.fmt}
               disabled={exporting}
-              onClick={() => { onExport(it.fmt); setOpen(false); }}
+              onClick={() => { onExport!(it.fmt); setOpen(false); }}
               style={{
                 width: '100%',
                 padding: '8px 10px',
@@ -113,7 +113,7 @@ export function UserMenu({ ui, exporting, exportDone, onExport }: UserMenuProps)
             </button>
           ))}
 
-          <div style={{ borderTop: `1px solid ${C.borderSubtle}`, margin: '4px 0' }} />
+          {exportOptions.length > 0 && <div style={{ borderTop: `1px solid ${C.borderSubtle}`, margin: '4px 0' }} />}
 
           <button
             onClick={() => { setOpen(false); setShowChangePassword(true); }}
